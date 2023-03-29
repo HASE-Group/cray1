@@ -1,0 +1,113 @@
+//v_mask.hase   Aug 20 rewritten 6/09/2017
+//
+//Global	
+//		RSTRING ( VM , "0000000000000000" );	
+
+$class_decls
+
+// Variable Declarations
+
+ cip * myCIP;
+ v_registers * myVregs;
+
+ bool send_to_S;
+
+ int old_state;
+ int i, j, k, bit_no, vm_bits[64];
+ int test_result;	
+ fn_packet fn_pkt;
+ s_struct vm_result;
+ t_sixtyfour_bit s_value;
+
+ void form_vm_bits ();
+
+$class_defs
+
+void v_mask::form_vm_bits ()
+{
+ for (i = 15; i >= 0; i--)
+  {
+   k = char_to_hex (VM[i]);
+   for (j = 3; j >= 0; j--) 
+    {
+     vm_bits[4*i+j] = (k & 1);
+     k = k >> 1;
+    }
+  }
+}
+
+$pre
+
+ myCIP = (cip*)sim.get_entity (sim.get_entity_id( "CIP" ) );
+ myVregs = (v_registers*)sim.get_entity(sim.get_entity_id("V_REGISTERS"));
+
+ send_to_S = false;
+// for (i =0; i<15; i++)
+ for (i =0; i<16; i++)
+	VM[i] = '0';
+ my_state = IDLE;
+ old_state = IDLE;
+ dump_state();
+
+$phase0
+
+// predicate for use in sim_waiting test
+
+ sim_from_port from_CIP (from_cip);
+ sim_from_port from_S_REGS (from_s_regs);
+ sim_from_port from_V_LOGIC(from_v_logic);
+
+  if (sim_waiting(ev, from_CIP))
+   {
+    SIM_CAST(fn_packet, fn_pkt, ev);
+    if (fn_pkt.op[0] == 'S')				// send VM to Si
+     {
+      vm_result.reg_no = fn_pkt.reg_no;
+      strcpy(vm_result.s.s16, VM);
+      send_to_S = true;
+     }
+    if (fn_pkt.op[0] == 'T')				// initialise VM to all zeros ready for results from V_LOGIC
+     {
+       for (i=0; i<16; i++)
+	{VM[i] = '0';}
+       for (i=0; i<64; i++)
+	 {vm_bits[i] = 0;}
+       bit_no = 0;
+       my_state = BUSY;
+      }
+    dump_state();
+   }
+
+   if (sim_waiting(ev, from_S_REGS))
+    {
+	SIM_CAST(t_sixtyfour_bit, s_value, ev);
+	strcpy(VM, s_value.s16);
+        dump_state();
+    }
+
+   if (sim_waiting(ev, from_V_LOGIC))
+   {
+	SIM_CAST(int , test_result, ev);
+	vm_bits[bit_no] = test_result;
+	bit_no ++;
+	if (bit_no == myVregs->no_of_elements)
+	 {
+	  myCIP->Vlogic_busy = false;
+	  my_state = IDLE;
+	}
+//	convert vm_bits to VM
+	for (i=0; i<16; i++)
+	 {VM[i] = hex_to_char(vm_bits[i*4]*8 + vm_bits[i*4+1]*4 + vm_bits[i*4+2] *2 + vm_bits[i*4+3]);}
+	dump_state();
+   }
+
+
+$phase1
+
+ if (send_to_S)
+  {
+   send_S_PKT(to_s_regs, vm_result);
+   send_to_S = false;
+  } 
+ 
+	

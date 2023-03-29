@@ -1,0 +1,87 @@
+// Project		Cray 1
+// Entity		Scalar Shift Unit
+// File		 a_shift.hase
+// Date		April 2018
+//
+// Performs shift left and shift right operations
+//  
+
+$class_decls
+
+// Variable Declarations
+
+ bool shift_busy0, shift_busy1;
+ int i, shift_distance;
+ t_sixtyfour_bit op_value;
+ sh_fn_packet sfn_pkt;
+ s_struct shift_result[2];		// i = dest_reg, s = 64-bit result
+
+$class_defs
+
+$pre
+
+ shift_busy0 = false;
+ shift_busy1 = false;
+ my_state = IDLE;
+ dump_state();
+
+$phase0
+
+// receive instruction (if one has been sent) and operands, produce result and set shift_busy
+
+// predicates for use in sim_waiting tests
+
+ sim_from_port from_S_REGS(from_s_regs);
+ sim_from_port from_CIP(from_cip);
+
+ shift_busy1 = shift_busy0;
+ shift_busy0 = false;
+ shift_result[1] = shift_result[0];
+if (sim_waiting(ev, from_CIP))
+  {
+			 printf("S_SHIFT_U getting instruction from CIP\n");
+   SIM_CAST(sh_fn_packet, sfn_pkt, ev);
+   shift_busy0 = true;
+  }
+
+ if (shift_busy0 || shift_busy1)
+  {my_state = BUSY;}
+ else
+  {my_state = IDLE; }
+
+if (sim_waiting(ev, from_S_REGS))
+  {
+    SIM_CAST(t_sixtyfour_bit, op_value, ev);
+
+   switch (sfn_pkt.op )
+     {
+	case '<':											// 052, 054
+	   shift_distance = (sfn_pkt.j << 3) | sfn_pkt.k;
+	   shift_result[0].reg_no = sfn_pkt.reg_no;
+	   shift_left (op_value.s16, shift_result[0].s.s16, shift_distance);
+	   shift_busy0 = true;
+//printf("S_SHIFT_U l %s = %s shifted left %d places \n", shift_result[0].s.s16, op_value.s16, shift_distance);
+	   break;
+
+	case '>':											// 053, 055
+	   shift_distance = 64 - ( (sfn_pkt.j << 3) | sfn_pkt.k);
+	   shift_result[0].reg_no = sfn_pkt.reg_no;
+	   shift_right (op_value.s16, shift_result[0].s.s16, shift_distance);
+	   shift_busy0 = true;
+//printf("S_SHIFT_U r %s = %s shifted right %d places \n", shift_result[0].s.s16, op_value.s16, shift_distance);
+	   break;
+    }
+  }
+  dump_state();
+
+$phase1
+
+// if shift_busy1 is set, send output to S regs
+
+ if (shift_busy1)
+  {
+   sim_hold(5);
+   send_S_PKT( to_s_regs, shift_result[1] );
+   shift_busy1 = false;
+  }
+

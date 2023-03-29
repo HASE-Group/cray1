@@ -1,0 +1,2202 @@
+
+// Project		Cray 1
+// Entity		CIP
+// File		cip.hase
+//Date		Oct 2017
+//
+// Globals
+//	RSTRUCT ( t_crayi_instrn , inst );
+// PARAMS
+//	RSTRING ( Instruction , "------" );
+//	RINT ( chaining , 1 );
+
+$class_decls
+
+ Clock* myClock;
+ i_buffers * myIBuff;
+ lip * myLIP;
+ nip * myNIP;
+ a_registers * myAregs;
+ b_registers * myBregs;
+ s_registers * mySregs;
+ t_registers * myTregs;
+ v_registers * myVregs;
+ v_mask * myVM;
+ p_register * myPreg;
+ a_mul_u * myAmul;
+ a_add_u * myAadd;
+ s_pop_u * mySpop;
+ s_shift_u * mySshft;
+ s_logic_u * mySlog;
+ s_add_u * mySadd;
+
+// Variable Declarations
+
+ bool  cip_ready, cip_held, new_instrn, instr_ready, instr_taken;
+ bool no_op, branch;
+ bool stop000, stop004, stop_nul;
+ bool Reg_use_conflict,  Block_transfer, V_transfer;
+ bool transmit_LtoA,  transmit_LtoP, transmit_B, transmit_LtoS, transmit_RStoA, transmit_StoA;
+ bool transmit_StoVM, transmit_T, transmit_V, transmit_VL;
+ bool set_Bregs_busy, set_Tregs_busy;
+ bool send_to_Aadd, send_to_Amul;
+ bool send_to_Spop, send_to_Sshift0, send_to_Sshift;
+ bool send_to_Slogic, send2_to_Slogic, send_to_Sadd;
+ bool Vadd_busy, Vlogic_busy, Vshift_busy;
+ bool sendAV_to_Vshift; 
+ bool sendSV_to_Vlogic, sendV_to_Vlogic, sendVV_to_Vlogic, sendSM_to_Vlogic, sendVM_to_Vlogic;
+ bool sendSV_to_Vadd, sendVV_to_Vadd, send_to_VM;
+ bool Fadd_busy, Fmul_busy;
+ bool sendSV_to_Fadd, sendVV_to_Fadd, sendSV_to_Fmul, sendVV_to_Fmul;
+
+ int old_state;
+ int g, i, k, latency, cycle;
+ int A_entry[7];
+ int S_entry[13];
+ int V_entry[13];
+
+t_instrn instrn;
+br_instrn br_inst;
+t_cray1_instrn32 instrn32;
+t_sixteen_bit m;  
+t_p_datapkt p_message;
+t_twentytwo_bit address; 
+t_twentytwo_bit increment; 
+t_twentytwo_bit jump_to_b;
+int parcel_number;
+int test_result, j, busy_test;
+char temp_address[6];
+  
+t_cray1_instrn  inst ;
+
+arith_format alu_inst;
+a_struct immconst_inst;
+
+  int temp, value1, new_value;
+a_struct a_reg_pkt;
+s_struct s_reg_pkt;
+fn_packet fn_pkt;
+sh_fn_packet sfn_pkt;
+rs_packet rs_pkt;
+tr_packet tr_pkt;
+tr24_packet tr24_pkt;
+tr64_packet tr64_pkt;
+
+void display_Instruction();
+void get_m_from_lip(); //hold until m has been received from lip
+void determine_address(char* m_address);
+void find_inst_address();
+void jkm_address_struct();
+void jkm_scalar_struct();
+void jk_address_struct();
+t_twentyfour_bit jk_immed24(int j, int k);
+t_twentyfour_bit jkm_immed24(int j, int k, t_sixteen_bit m);
+t_twentyfour_bit ijkm_immed24(int i, int j, int k, t_sixteen_bit m);
+t_sixtyfour_bit jkm_immed64(int j, int k, t_sixteen_bit m);
+
+void clear_Instruction();
+
+$class_defs
+
+void cip::display_Instruction()
+{
+   if (inst.g > 7)
+    {Instruction[0] = '1';}
+   else
+    {Instruction[0] = '0';}
+   g = inst.g & 7;
+   Instruction[1] = hex_to_char(g);
+   Instruction[2] = hex_to_char(inst.h);
+   Instruction[3] = hex_to_char(inst.i);
+   Instruction[4] = hex_to_char(inst.j);
+   Instruction[5] = hex_to_char(inst.k);
+}
+
+void cip::clear_Instruction()
+{
+   for (int i = 0; i<6; i++)
+       {Instruction[i]= '_';}
+}
+
+void cip::determine_address(char* m_address)
+{
+// set 20-bit address to jkm, where
+// m is a 16-bit struct, j and k are octal integers
+  m_address[4]=m.s4[3];  
+  m_address[3]=m.s4[2];  
+  m_address[2]=m.s4[1];  
+  m_address[1]=m.s4[0];
+  m_address[0]=hex_to_char( (inst.k + inst.j*8)%16 );
+}
+
+void cip::find_inst_address()
+{
+// set 22-bit address to jkm, where
+// m is a 16-bit struct, j and k are octal integers
+  address.s6[5]=hex_to_char( char_to_hex(m.s4[3])%4 );  
+  address.s6[4]=hex_to_char( ( char_to_hex(m.s4[2])%4 ) *4
+				+ char_to_hex(m.s4[3])/4 );  
+  address.s6[3]=hex_to_char( ( char_to_hex(m.s4[1])%4 ) *4
+				+ char_to_hex(m.s4[2])/4 );
+  address.s6[2]=hex_to_char( ( char_to_hex(m.s4[0])%4 ) *4
+				+ char_to_hex(m.s4[1])/4 );
+  address.s6[1]=hex_to_char( ( char_to_hex(m.s4[0])/4 )
+				+ (inst.k % 4)*4 );
+  address.s6[0]=hex_to_char( inst.k /4 	+ inst.j *2 );
+//   strcpy(address.s6, "000011");
+   // printf("\n cip::find_inst_address: %s \n ", address.s6);
+}
+
+void cip::jkm_scalar_struct()
+{
+// set 64-bit address to jkm, 42 upper bits zeroed, where
+// m is a 16-bit struct, j and k are octal integers
+  s_reg_pkt.reg_no = inst.i;
+  strcpy(s_reg_pkt.s.s16, "0000000000000000");
+  s_reg_pkt.s.s16[15]=m.s4[3];  
+  s_reg_pkt.s.s16[14]=m.s4[2];  
+  s_reg_pkt.s.s16[13]=m.s4[1];
+  s_reg_pkt.s.s16[12]=m.s4[0];
+  s_reg_pkt.s.s16[11]=hex_to_char( inst.k + ((inst.j)%2)*8 );
+  s_reg_pkt.s.s16[10]=hex_to_char(  (inst.j) /2 );
+   // printf(" cip::jkm_scalar_struct: %s \n ", s_reg_pkt.s.s16);
+}
+void cip::jkm_address_struct()
+{
+// set 24-bit address to jkm, where
+// m is a 16-bit struct, j and k are octal integers
+  
+  a_reg_pkt.reg_no = inst.i;
+  a_reg_pkt.a.s6[5]=m.s4[3];  
+  a_reg_pkt.a.s6[4]=m.s4[2];  
+  a_reg_pkt.a.s6[3]=m.s4[1];
+  a_reg_pkt.a.s6[2]=m.s4[0];
+  a_reg_pkt.a.s6[1]=hex_to_char( inst.k + ((inst.j)%2)*8 );
+  a_reg_pkt.a.s6[0]=hex_to_char(  (inst.j) /2 );
+						//    printf(" cip::jkm_address_struct: %s \n ", a_reg_pkt.a.s6);
+}
+
+void cip::jk_address_struct()
+{
+// set 24-bit address to jk, where
+// j and k are octal integers
+ //  printf(" cip::jk_address_struct: tried to call. \n ");
+  
+  a_reg_pkt.reg_no = inst.i;
+  a_reg_pkt.a.s6[5]= hex_to_char( inst.k + ((inst.j)%2)*8 );
+  a_reg_pkt.a.s6[4]= hex_to_char(  (inst.j) /2 );
+  a_reg_pkt.a.s6[3]= '0';
+  a_reg_pkt.a.s6[2]= '0';
+  a_reg_pkt.a.s6[1]= '0';
+  a_reg_pkt.a.s6[0]= '0';
+   // printf(" cip::jk_address_struct: %s \n ", a_reg_pkt.a.s6);
+}
+
+t_twentyfour_bit cip::jk_immed24(int j, int k)
+{
+  t_twentyfour_bit immediate;
+	immediate.s6[5] = hex_to_char( k + (j%2)*8 );
+	immediate.s6[4] = hex_to_char( j /2 );
+	immediate.s6[3] = '0';
+	immediate.s6[2] = '0';
+	immediate.s6[1] = '0';
+	immediate.s6[0] = '0';
+  return immediate;
+}
+
+t_twentyfour_bit cip::jkm_immed24(int j, int k, t_sixteen_bit m)
+{
+  t_twentyfour_bit immediate;
+	immediate.s6[5] = m.s4[3];
+	immediate.s6[4] = m.s4[2];
+	immediate.s6[3] = m.s4[1];
+	immediate.s6[2] = m.s4[0];
+	immediate.s6[1] = hex_to_char( k + (j & 1)*8 ); 
+	immediate.s6[0] = hex_to_char( j >> 1);
+  return immediate;
+}
+
+t_twentyfour_bit cip::ijkm_immed24(int i, int j, int k, t_sixteen_bit m)
+{
+  t_twentyfour_bit immediate;
+	immediate.s6[5] = m.s4[3];
+	immediate.s6[4] = m.s4[2];
+	immediate.s6[3] = m.s4[1];
+	immediate.s6[2] = m.s4[0];
+	immediate.s6[1] = hex_to_char( k + (j & 1)*8 ); 
+	immediate.s6[0] = hex_to_char( (j >>1) + (i & 3)*4 );
+  return immediate;
+}
+
+t_sixtyfour_bit cip::jkm_immed64(int j, int k, t_sixteen_bit m)
+{
+  t_sixtyfour_bit immediate;
+	strcpy(immediate.s16, "0000000000000000");
+	immediate.s16[15] = m.s4[3];
+	immediate.s16[14] = m.s4[2];
+	immediate.s16[13] = m.s4[1];
+	immediate.s16[12] = m.s4[0];
+	immediate.s16[11] = hex_to_char( k + (j%2)*8 ); 
+	immediate.s16[10] = hex_to_char( j /2 );
+  return immediate;
+}
+
+$pre
+
+myClock = (Clock*) sim.get_entity( sim.get_entity_id( "CLOCK" ) );  
+myIBuff = (i_buffers*)sim.get_entity(sim.get_entity_id("I_BUFFERS"));
+ myLIP = (lip*)sim.get_entity(sim.get_entity_id("LIP"));
+ myNIP = (nip*)sim.get_entity(sim.get_entity_id("NIP"));
+ myAregs = (a_registers*)sim.get_entity(sim.get_entity_id("A_REGISTERS"));
+ myBregs = (b_registers*)sim.get_entity(sim.get_entity_id("B_REGISTERS"));
+ mySregs = (s_registers*)sim.get_entity(sim.get_entity_id("S_REGISTERS"));
+ myTregs = (t_registers*)sim.get_entity(sim.get_entity_id("T_REGISTERS"));
+ myVregs = (v_registers*)sim.get_entity(sim.get_entity_id("V_REGISTERS"));
+ myVM = (v_mask*)sim.get_entity(sim.get_entity_id("V_MASK"));
+ myPreg = (p_register*)sim.get_entity(sim.get_entity_id("P_REGISTER"));
+ myAmul = (a_mul_u*)sim.get_entity(sim.get_entity_id("A_MUL_U"));
+ myAadd = (a_add_u*)sim.get_entity(sim.get_entity_id("A_ADD_U"));
+ mySpop = (s_pop_u*)sim.get_entity(sim.get_entity_id("S_POP_U"));
+ mySshft = (s_shift_u*)sim.get_entity(sim.get_entity_id("S_SHIFT_U"));
+ mySlog = (s_logic_u*)sim.get_entity(sim.get_entity_id("S_LOGIC_U"));
+ mySadd = (s_add_u*)sim.get_entity(sim.get_entity_id("S_ADD_U"));
+
+ cycle = 0;
+
+ cip_ready = true;
+ cip_held = false;
+ new_instrn = false;
+ instr_ready = false;
+ instr_taken = false;
+ no_op = false;
+ branch = false;
+ Reg_use_conflict = false;
+ Block_transfer = false;
+ V_transfer = false;
+ transmit_LtoA = false;
+ transmit_LtoS = false;
+ transmit_RStoA = false;
+ transmit_StoA = false;
+ transmit_StoVM = false;
+ transmit_B = false;
+ transmit_T = false;
+ transmit_V = false;
+ transmit_VL = false;
+
+ set_Bregs_busy = false;
+ set_Tregs_busy = false;
+ stop000 = false;
+ stop004 = false;
+ stop_nul = false;
+
+send_to_Aadd = false;
+send_to_Amul = false;
+
+send_to_Spop = false;
+send_to_Sshift0 = false;
+send_to_Sshift = false;
+send_to_Slogic = false;
+send2_to_Slogic = false;
+send_to_Sadd = false;
+
+Vshift_busy = false;
+Vlogic_busy = false;
+Vadd_busy = false;
+Fmul_busy = false;
+Fadd_busy = false;
+sendAV_to_Vshift = false;
+sendSV_to_Vlogic = false;
+sendV_to_Vlogic = false;
+sendVV_to_Vlogic = false;
+sendSM_to_Vlogic = false;
+sendVM_to_Vlogic = false;
+sendSV_to_Vadd = false;
+sendVV_to_Vadd = false;
+sendSV_to_Fmul = false;
+sendVV_to_Fmul = false;
+sendSV_to_Fadd = false;
+sendVV_to_Fadd = false;
+send_to_VM = false;
+
+ parcel_number = 1;
+
+ for (i=0; i<7; i++)
+  {A_entry[i] = 0;}
+
+strcpy(increment.s6, "Inc_P");
+strcpy(jump_to_b.s6, "Jump_B");
+
+
+//new_value=0;
+//value1=0;
+clear_Instruction();
+my_state = CIP_IDLE;
+old_state = CIP_IDLE;
+dump_state();
+
+$phase0
+printf("CIP clock cycle %d phase 0 \n", cycle);
+cycle = myClock->cycle / 2;
+//printf("Clock cycle %d Phase 0\n", cycle);
+if (cycle > 400)
+ {stopSimulation();}
+
+// predicates for use in sim_waiting tests
+
+ sim_from_port from_NIP(from_nip);
+
+ if (cip_ready && sim_waiting(ev, from_NIP))
+  {
+    SIM_CAST(t_instrn, instrn, ev);
+    inst = instrn.instrn;
+//    printf("CIP: getting %d-parcel instruction from NIP %d %d %d %d %d \n", instrn.parcels, inst.g, inst.h, inst.i, inst.j, inst.k);
+    instr_taken = true;
+     if (instrn.parcels == 0)
+      {
+       clear_Instruction();
+       no_op = true;
+       my_state = CIP_IDLE;
+      }
+  else
+    {
+     new_instrn = true;
+     my_state = CIP_BUSY;
+     if (instrn.parcels == 2)     // copy second parcel from LIP
+      {
+       m = myLIP->inst_parcel;
+       myLIP->parcel_taken = true;
+      }
+    }
+  }
+
+ if (new_instrn || cip_held)
+  {								//   decode instruction
+    cip_ready = false;
+    new_instrn = false;
+    cip_held = false;
+    fn_pkt.op[1] = '_';
+   my_state = CIP_BUSY;
+   switch (inst.g)									// GROUP 00 functions
+      {
+	case 0: switch (inst.h)
+     	       {
+		case 0: 									// Error exit, stops simulation
+			printf("CIP: gh = 000 \n");
+			stop000 = true;
+		 	break;
+		case 1: 									 // Monitor functions, clock functions
+			printf("CIP: gh = 001 \n");
+			stop_nul = true;
+			break;
+		case 2:
+			switch (inst.i)
+			  {
+			    case 0:  							// Transmit (Ak) to VL
+			    printf("CIP: gh = 002, i = 0 \n");
+			    tr_pkt.type = AtoVL;
+			    tr_pkt.i = 0;
+			    tr_pkt.j = 0;
+			    tr_pkt.k = inst.k;
+			    latency = 1;
+			    transmit_VL = true;
+			    break;
+			  }
+			break;
+		case 3:  									// Transmit (Sj) to vector mask
+			printf("CIP: gh = 003 \n");
+			tr_pkt.type = StoVM;
+			tr_pkt.i = 0;
+			tr_pkt.j = inst.j;
+			tr_pkt.k = 0;
+			latency = 1;
+			transmit_StoVM = true;
+			break;
+		case 4:  									// Normal exit, used to stop simulation
+												// at the end of a program 
+			printf("CIP: gh = 004 \n");
+			sim_hold(5);							// to allow Busy flags to get set in registers
+//printf("CiP: Aregs_Busy = %d, Bregs_Busy = %d, Sregs_Busy = %d, Tregs_Busy = %d, Vregs_Busy = %d \n", 
+//		myAregs->Aregs_Busy, myBregs->Bregs_Busy, mySregs->Sregs_Busy, myTregs->Tregs_Busy,
+//		myVregs->Vregs_Busy);
+
+			if  (  (myAregs->Aregs_Busy == 0) && (myBregs->Bregs_Busy == 0)
+			 && (mySregs->Sregs_Busy == 0) && (myTregs->Tregs_Busy == 0)
+			 && (myVregs->Vregs_Busy == 0) )
+			 {stop004 = true;}
+			else
+    			 {
+			  cip_held = true;
+			  my_state = CIP_HELD;
+			 }
+			break;
+		case 5:  									// Branch to (Bjk)
+			printf("CIP: gh = 005 \n");
+			tr_pkt.type = BtoP;
+			tr_pkt.i = inst.i;
+			tr_pkt.j = inst.j;
+			tr_pkt.k = inst.k;
+			latency = 1;
+			transmit_B = true;
+			break;
+		case 6:  									// Branch to ijkm
+			printf("CIP: gh = 006 \n");
+			br_inst.type = UL;
+			strcpy (br_inst.a.s6, ijkm_immed24 (inst.i, inst.j, inst.k, m).s6);
+			latency = 1;
+			branch = true;
+			break;
+		case 7:  									// Return jump to ijkm; set B00 to (P)
+			printf("CIP: gh = 007 \n");
+												// sends PtoB transfer packet to Bregs
+			tr_pkt.type = PtoB;
+			tr_pkt.i = inst.i;
+			tr_pkt.j = 0;
+			tr_pkt.k = 0;
+			latency = 1;
+			transmit_B = true;
+												// sends type RJ branch to P register
+												// PtoB code in Phase 1 sets branch = true
+			br_inst.type = RJ;
+			strcpy (br_inst.a.s6, ijkm_immed24 (inst.i, inst.j, inst.k, m).s6);
+			break;
+		}										// end of GROUP 00 functions
+		break;
+	case 1: switch (inst.h)							// GROUP 01 functions
+     	       {
+		case 0:									// Branch to ijkm if (A0) = 0
+			printf("CIP: gh = 010 \n");
+			br_inst.type = AZ;
+			strcpy (br_inst.a.s6, ijkm_immed24 (inst.i, inst.j, inst.k, m).s6);
+			branch = true;
+			break;
+		case 1:									// Branch to ijkm if (A0) != 0
+			printf("CIP: gh = 011 \n");
+			br_inst.type = ANZ;
+			strcpy (br_inst.a.s6, ijkm_immed24 (inst.i, inst.j, inst.k, m).s6);
+			branch = true;
+			break;
+		case 2:									// Branch to ijkm if (A0) positive
+			printf("CIP: gh = 012 \n");
+			br_inst.type = AP;
+			strcpy (br_inst.a.s6, ijkm_immed24 (inst.i, inst.j, inst.k, m).s6);
+			branch = true;
+			break;
+		case 3:									// Branch to ijkm if (A0) negative
+			printf("CIP: gh = 013 \n");
+			br_inst.type = AN;
+			strcpy (br_inst.a.s6, ijkm_immed24 (inst.i, inst.j, inst.k, m).s6);
+			branch = true;
+			break;
+		case 4:									// Branch to ijkm if (S0) = 0
+			printf("CIP: gh = 014 \n");
+			br_inst.type = SZ;
+			strcpy (br_inst.a.s6, ijkm_immed24 (inst.i, inst.j, inst.k, m).s6);
+			branch = true;
+			break;
+		case 5:									// Branch to ijkm if (S0) != 0
+			printf("CIP: gh = 015 \n");
+			br_inst.type = SNZ;
+			strcpy (br_inst.a.s6, ijkm_immed24 (inst.i, inst.j, inst.k, m).s6);
+			branch = true;
+			break;
+		case 6:									// Branch to ijkm if (S0) positive
+			printf("CIP: gh = 016 \n");
+			br_inst.type = SP;
+			strcpy (br_inst.a.s6, ijkm_immed24 (inst.i, inst.j, inst.k, m).s6);
+			branch = true;
+			break;
+		case 7:									// Branch to ijkm if (S0) negative
+			printf("CIP: gh = 017 \n");
+			br_inst.type = SN;
+			strcpy (br_inst.a.s6, ijkm_immed24 (inst.i, inst.j, inst.k, m).s6);
+			branch = true;
+			break;
+		}					// end of GROUP 01 functions
+		break;
+	case 2: switch (inst.h)							// GROUP 02 functions
+     	       {
+		case 0:									// Transmit jkm to Ai
+			printf("CIP: gh = 020 \n");
+			tr24_pkt.type = LtoA;
+			tr24_pkt.i = inst.i;
+			strcpy (tr24_pkt.a.s6, jkm_immed24 (inst.j, inst.k, m).s6);
+			latency = 1;
+			transmit_LtoA = true;
+			break;
+		case 1:									// Transmit complement of jkm to Ai
+			printf("CIP: gh = 021 \n");
+			tr24_pkt.type = LtoA;
+			tr24_pkt.i = inst.i;
+			strcpy (tr24_pkt.a.s6, jkm_immed24 (inst.j, inst.k, m).s6);
+			a_complement(tr24_pkt.a.s6);
+			latency = 1;
+			transmit_LtoA = true;
+			break;
+		case 2:									// Transmit jk to Ai
+			printf("CIP: gh = 022 \n");
+			tr24_pkt.type = LtoA;
+			tr24_pkt.i = inst.i;
+			strcpy (tr24_pkt.a.s6, jk_immed24 (inst.j, inst.k).s6);
+			latency = 1;
+			transmit_LtoA = true;
+			break;
+		case 3:									// Transmit (Sj) to Ai
+			printf("CIP: gh = 023 \n");
+			tr_pkt.type = StoA;
+			tr_pkt.i = inst.i;
+			tr_pkt.j = inst.j;
+			tr_pkt.k = inst.k;
+			latency = 1;
+			transmit_StoA = true;
+			break;
+		case 4:									// Transmit (Bjk) to Ai
+			printf("CIP: gh = 024 \n");
+			tr_pkt.type = BtoA;
+			tr_pkt.i = inst.i;
+			tr_pkt.j = inst.j;
+			tr_pkt.k = inst.k;
+			latency = 1;
+			transmit_B = true;
+			break;
+		case 5:									// Transmit (Ai) to Bjk
+			printf("CIP: gh = 025 \n");
+			tr_pkt.type = AtoB;
+			tr_pkt.i = inst.i;
+			tr_pkt.j = inst.j;
+			tr_pkt.k = inst.k;
+			latency = 1;
+			transmit_B = true;
+			break;
+		case 6:									// Population count of (Sj) to Ai
+			printf("CIP: gh = 026 \n");
+			fn_pkt.op[0] = 'P';
+			fn_pkt.reg_no = inst.i;
+			latency = 4;
+			send_to_Spop = true;
+			break;
+		case 7:									// Leading zero count of (Sj) to Ai
+			printf("CIP: gh = 027 \n");
+			fn_pkt.op[0] = 'Z';
+			fn_pkt.reg_no = inst.i;
+			latency = 4;
+			send_to_Spop = true;
+			break;
+		}										// end of GROUP 02 functions
+		break;
+	case 3: switch (inst.h)							// GROUP 03 functions
+     	       {
+		case 0:
+			printf("CIP: gh = 030 \n");					// Integer sum of (Aj) and (Ak) to Ai
+												// Send function and dest reg info to Aadd
+												// Invoke send_to_Aadd in Aregs
+			fn_pkt.op[0] = '+';
+			fn_pkt.reg_no = inst.i;
+			latency = 2;
+			send_to_Aadd = true;
+			break;
+		case 1:
+			printf("CIP: gh = 031 \n");					// Integer difference of (Ai) and (Ak) to Ai
+												// Send function and dest reg info to Aadd
+												// Invoke send_to_Aadd in Aregs
+			fn_pkt.op[0] = '-';
+			fn_pkt.reg_no = inst.i;
+			latency = 2;
+			send_to_Aadd = true;
+			break;
+		case 2:
+			printf("CIP: gh = 032 \n");					// Integer product of (Aj) and (Ak) to Ai
+												// Send function and dest reg info to Amul
+												// Invoke send_to_Aadd in Aregs
+			fn_pkt.op[0] = '*';
+			fn_pkt.reg_no = inst.i;
+			latency = 6;
+			send_to_Amul = true;
+			break;
+		case 3:									// Transmit I/0 to Ai - not implemented
+			printf("CIP: gh = 033 \n");
+			break;
+		case 4:
+			printf("CIP: gh = 034 \n");		// Block transfer: Memory to B registers
+									// transfers (Ai) words from memory starting at (A0)
+									// jk specifies first B register to be loaded
+									// Sends function and jk to Bregs
+									// Invokes send_to_Bregs in Aregs
+			tr_pkt.type = MtoB;
+			tr_pkt.i = inst.i;
+			tr_pkt.j = inst.j;
+			tr_pkt.k = inst.k;
+			transmit_B = true;
+			break;
+		case 5:							
+			printf("CIP: gh = 035 \n");		// Block transfer: B registers to Memory
+									// transfers (Ai) words to memory starting at (A0)
+									// jk specifies first B register to be stored
+									// Sends function and jk to Bregs
+									// Invokes send_to_Bregs in Aregs
+			tr_pkt.type = BtoM;
+			tr_pkt.i = inst.i;
+			tr_pkt.j = inst.j;
+			tr_pkt.k = inst.k;
+			transmit_B = true;
+			break;
+		case 6:
+			printf("CIP: gh = 036 \n");		// Block transfer: Memory to T registers
+									// transfers (Ai) words from memory starting at (A0)
+									// jk specifies first T register to be loaded
+									// Sends function and jk to Tregs
+									// Invokes send_to_Tregs in Aregs
+			tr_pkt.type = MtoT;
+			tr_pkt.i = inst.i;
+			tr_pkt.j = inst.j;
+			tr_pkt.k = inst.k;
+			transmit_T = true;
+
+			break;
+		case 7:
+			printf("CIP: gh = 037 \n");		// Block transfer: T registers to Memory
+									// transfers (Ai) words to memory starting at (A0)
+									// jk specifies first T register to be stored, sent to T by CIP
+									// Sends function and jk to Tregs
+									// Invokes send_to_Tregs in Aregs
+			tr_pkt.type = TtoM;
+			tr_pkt.i = inst.i;
+			tr_pkt.j = inst.j;
+			tr_pkt.k = inst.k;
+			transmit_T = true;
+			break;
+		}													// end of GROUP 03 functions
+		break;
+
+	case 4: switch (inst.h)										// GROUP 04 functions
+     	       {
+		case 0:									// Transmit jkm to Si
+			printf("CIP: gh = 040 \n");					
+			tr64_pkt.type = LtoS;
+			tr64_pkt.i = inst.i;
+			strcpy (tr64_pkt.s.s16, jkm_immed64 (inst.j, inst.k, m).s16);
+			latency = 1;
+			transmit_LtoS = true;
+			break;
+		case 1:
+			printf("CIP: gh = 041 \n");					//  Transmit complement of jkm to Si
+			tr64_pkt.type = LtoS;
+			tr64_pkt.i = inst.i;
+			strcpy (tr64_pkt.s.s16, jkm_immed64 (inst.j, inst.k, m).s16);
+			s_complement(tr64_pkt.s.s16);
+			latency = 1;
+			transmit_LtoS = true;
+			break;
+		case 2:
+			printf("CIP: gh = 042 \n");					// Form 64-jk bits of 1's mask of Si from right
+			sfn_pkt.op = 'R';
+			sfn_pkt.reg_no = inst.i;
+			sfn_pkt.j = inst.j;
+			sfn_pkt.k = inst.k;
+			latency = 1;
+			send_to_Slogic = true;
+			break;
+		case 3:
+			printf("CIP: gh = 043 \n");					// Form jk bits of 1's mask in Si from left
+			sfn_pkt.op = 'L';
+			sfn_pkt.reg_no = inst.i;
+			sfn_pkt.j = inst.j;
+			sfn_pkt.k = inst.k;
+			latency = 1;
+			send_to_Slogic = true;
+			break;
+		case 4:									// Logical product (&) of (Sj) and (Sk) to Si
+			printf("CIP: gh = 044 \n");
+			fn_pkt.op[0] = '&';
+			fn_pkt.reg_no = inst.i;
+			latency = 1;
+			send2_to_Slogic = true;
+			break;
+		case 5:
+			printf("CIP: gh = 045 \n");					// Logical product (&) of (Sj) and !(Sk) to Si
+			fn_pkt.op[0] = '$';
+			fn_pkt.reg_no = inst.i;
+			latency = 1;
+			send2_to_Slogic = true;
+
+			break;
+		case 6:
+			printf("CIP: gh = 046 \n");					// Logical difference (xor) of (Sj) and (Sk) to Si
+			fn_pkt.op[0] = 'X';
+			fn_pkt.reg_no = inst.i;
+			latency = 1;
+			send2_to_Slogic = true;
+			break;
+		case 7:
+			printf("CIP: gh = 047 \n");					// Logical equivalence of (Sj) and (Sk) to Si
+			fn_pkt.op[0] = 'E';
+			fn_pkt.reg_no = inst.i;
+			latency = 1;
+			send2_to_Slogic = true;
+			break;
+		}													// end of GROUP 04 functions
+		break;
+
+	case 5: switch (inst.h)										// GROUP 05 functions
+     	       {
+		case 0:
+			printf("CIP: gh = 050 \n");					// Scalar merge			
+			stop_nul = true;						// not yet implemented - needs 3 S register values
+			break;
+		case 1:
+			printf("CIP: gh = 051 \n");					// Logical sum (OR) of (Sj) and (Sk) to Sii
+			fn_pkt.op[0] = '|';
+			fn_pkt.reg_no = inst.i;
+			latency = 1;
+			send2_to_Slogic = true;
+			break;
+		case 2:
+			printf("CIP: gh = 052 \n");					// Shift (Si) left jk places to S0
+			sfn_pkt.op = '<';
+			sfn_pkt.reg_no = 0;
+			sfn_pkt.j = inst.j;
+			sfn_pkt.k = inst.k;
+			latency = 2;
+			send_to_Sshift0 = true;
+			break;
+		case 3:
+			printf("CIP: gh = 053 \n");					// Shift (Si) right 64-jk places to S0
+			sfn_pkt.op= '>';
+			sfn_pkt.reg_no = 0;
+			sfn_pkt.j = inst.j;
+			sfn_pkt.k = inst.k;
+			latency = 2;
+			send_to_Sshift0 = true;
+			break;
+		case 4:
+			printf("CIP: gh = 054 \n");					// Shift (Si) left jk places to Si
+			sfn_pkt.op = '<';
+			sfn_pkt.reg_no = inst.i;
+			sfn_pkt.j = inst.j;
+			sfn_pkt.k = inst.k;
+			latency = 2;
+			send_to_Sshift = true;
+			break;
+		case 5:
+			printf("CIP: gh = 055 \n");					// Shift (Si) right 64-jk places to Si
+			sfn_pkt.op = '>';
+			sfn_pkt.reg_no = inst.i;
+			sfn_pkt.j = inst.j;
+			sfn_pkt.k = inst.k;
+			latency = 2;
+			send_to_Sshift = true;
+			break;
+		case 6:
+			printf("CIP: gh = 056 \n");					// Shift (Si) and (Sj) left by (Sk) places to Si
+			stop_nul = true;
+			break;
+		case 7:
+			printf("CIP: gh = 057 \n");					// Shift (Si) and (Sj) left by (Ak) places to Si
+			stop_nul = true;
+			break;
+
+		}													// end of GROUP 05 functions
+		break;
+
+	case 6: switch (inst.h)										// GROUP 06 functions
+     	       {
+		case 0:
+			printf("CIP: gh = 060 \n");					// Integer sum of (Sj) and (Sk) to Si
+												// Send function and dest reg info to Sadd
+												// Invoke send_to_Sadd in Sregs
+			fn_pkt.op[0] = '+';
+			fn_pkt.reg_no = inst.i;
+			latency = 3;
+			send_to_Sadd = true;
+			break;
+
+		case 1:
+			printf("CIP: gh = 061 \n");					// Integer difference of (Sj) and (Sk) to Sii
+												// Send function and dest reg info to Sadd
+												// Invoke send_to_Sadd in Sregs
+			fn_pkt.op[0] = '-';
+			fn_pkt.reg_no = inst.i;
+			latency = 2;
+			send_to_Sadd = true;
+			break;
+
+		case 2:
+			printf("CIP: gh = 062 \n");					// Floating sum of (Sj) and (Sk) to Si
+			stop_nul = true;						// not yet implemented
+			break;
+		case 3:
+			printf("CIP: gh = 063 \n");					// Floating difference of (Sj) and (Sk) to Si
+			stop_nul = true;						// not yet implemented
+			break;
+		case 4:
+			printf("CIP: gh = 064 \n");					// Floating product of (Sj) and (Sk) to Si
+			stop_nul = true;						// not yet implemented
+			break;
+
+		case 5:
+			printf("CIP: gh = 065 \n");					// Half-precision rounded fl. product
+			stop_nul = true;						// not yet implemented
+			break;
+		case 6:
+			printf("CIP: gh = 066 \n");					// Rounded floating product 
+			stop_nul = true;						// not yet implemented
+			break;
+		case 7:
+			printf("CIP: gh = 067 \n");					// Reciprocal iteration; 2-(Sj)*(Sk) to Si
+			stop_nul = true;						// not yet implemented
+			break;
+
+		}													// end of GROUP 06 functions
+		break;
+
+	case 7: switch (inst.h)										// GROUP 07 functions
+     	       {
+		case 0:
+			printf("CIP: gh = 070 \n");					// Floating reciprocal approximation
+			stop_nul = true;						// not yet implemented
+			break;
+		case 1:
+			printf("CIP: gh = 071 \n");					// Transmit (Ak) or normalised FP constant to Si
+			stop_nul = true;						// not yet implemented
+			break;
+		case 2:
+			printf("CIP: gh = 072 \n");					// Transmit (RTC) to Si 
+			stop_nul = true;						// not yet implemented
+			break;
+		case 3:
+			printf("CIP: gh = 073 \n");					// Transmit (VM) to Si 
+			fn_pkt.op[0] = 'S';
+			fn_pkt.reg_no = inst.i;
+			latency = 1;
+			send_to_VM = true;
+			break;
+		case 4:									// Transmit (Tjk) to Si
+			printf("CIP: gh = 074 \n");
+			tr_pkt.type = TtoS;
+			tr_pkt.i = inst.i;
+			tr_pkt.j = inst.j;
+			tr_pkt.k = inst.k;
+			latency = 1;
+			transmit_T = true;
+			break;
+		case 5:									// Transmit (Si) to Tjk
+			printf("CIP: gh = 075 \n");
+			tr_pkt.type = StoT;
+			tr_pkt.i = inst.i;
+			tr_pkt.j = inst.j;
+			tr_pkt.k = inst.k;
+			latency = 1;
+			transmit_T = true;
+			break;
+		case 6:
+			printf("CIP: gh = 076 \n");					// Transmit (Vj, element (Ak)) to Si
+			tr_pkt.type = VtoS;
+			tr_pkt.i = inst.i;
+			tr_pkt.j = inst.j;
+			tr_pkt.k = inst.k;
+			latency = 1;
+			transmit_V = true;
+			break;
+		case 7:
+			printf("CIP: gh = 077 \n");					// Transmit (Sj) to Vi element (Ak)
+			tr_pkt.type = StoV;
+			tr_pkt.i = inst.i;
+			tr_pkt.j = inst.j;
+			tr_pkt.k = inst.k;
+			latency = 1;
+			transmit_V = true;
+			break;
+		}													// end of GROUP 07 functions
+		break;
+
+	case 8:													// GROUP 10 function
+			printf("CIP: g = 10h \n");						// Read from ((Ah) + jkm) to Ai 
+			rs_pkt.op = 10;
+			rs_pkt.h_reg = inst.h;
+			rs_pkt.i_reg = inst.i;
+			strcpy (rs_pkt.a.s6, jkm_immed24 (inst.j, inst.k, m).s6);
+			latency = 5;
+			transmit_RStoA = true;
+			break;
+
+	case 9:													// GROUP 11 function
+			printf("CIP: g = 11h \n");						// Store (Ai) to (Ah) + jkm 
+			rs_pkt.op = 11;
+			rs_pkt.h_reg = inst.h;
+			rs_pkt.i_reg = inst.i;
+			strcpy (rs_pkt.a.s6, jkm_immed24 (inst.j, inst.k, m).s6);
+			latency = 1;
+			transmit_RStoA = true;
+			break;
+
+	case 10:													// GROUP 12 function
+			printf("CIP: g = 12h \n");						// Read from ((Ah + jkm) to Si 
+			rs_pkt.op = 12;
+			rs_pkt.h_reg = inst.h;
+			rs_pkt.i_reg = inst.i;
+			strcpy (rs_pkt.a.s6, jkm_immed24 (inst.j, inst.k, m).s6);
+			latency = 5;
+			transmit_RStoA = true;
+			break;
+
+	case 11:													// GROUP 13 function
+			printf("CIP: g = 13h \n");						// Store (Si) to (Ah) + jkm
+			rs_pkt.op = 13;
+			rs_pkt.h_reg = inst.h;
+			rs_pkt.i_reg = inst.i;
+			strcpy (rs_pkt.a.s6, jkm_immed24 (inst.j, inst.k, m).s6);
+			latency = 2;
+			transmit_RStoA = true;
+			break;
+
+	case 12: switch (inst.h)										// GROUP 14 functions
+     	       {
+		case 0:
+			printf("CIP: gh = 140 \n");					// Logical products of (Sj) and (Vk) to Vi 
+			fn_pkt.op[0] = '&';
+			fn_pkt.reg_no = inst.i;
+			latency = 1;
+			sendSV_to_Vlogic = true;
+			break;
+		case 1:
+			printf("CIP: gh = 141 \n");					// Logical products of (Vj) and (Vk) to Vi 
+			fn_pkt.op[0] = '&';
+			fn_pkt.reg_no = inst.i;
+			latency = 1;
+			sendVV_to_Vlogic = true;
+			break;
+		case 2:
+			printf("CIP: gh = 142 \n");					// Logical sums of (Sj) and (Vk) to Vi 
+			fn_pkt.op[0] = '|';
+			fn_pkt.reg_no = inst.i;
+			latency = 1;
+			sendSV_to_Vlogic = true;
+			break;
+		case 3:
+			printf("CIP: gh = 143 \n");					// Logical sums of (Vj) and (Vk) to Vi 
+			fn_pkt.op[0] = '|';
+			fn_pkt.reg_no = inst.i;
+			latency = 1;
+			sendVV_to_Vlogic = true;
+			break;
+		case 4:
+			printf("CIP: gh = 144 \n");					// Logical differences of (Sj) and (Vk) to Vi 
+			fn_pkt.op[0] = 'X';
+			fn_pkt.reg_no = inst.i;
+			latency = 1;
+			sendSV_to_Vlogic = true;
+			break;
+		case 5:
+			printf("CIP: gh = 145 \n");					// Logical differences of (Vj) and (Vk) to Vi
+			fn_pkt.op[0] = 'X';
+			fn_pkt.reg_no = inst.i;
+			latency = 1;
+			sendVV_to_Vlogic = true;
+			break;
+		case 6:
+			printf("CIP: gh = 146 \n");					// If VM bit = 1, transmit (Sj) to Vi
+												// If VM bit = 0, transmit (Vk) to Vi 
+			fn_pkt.op[0] = 'M';
+			fn_pkt.reg_no = inst.i;
+			latency = 1;
+			sendSM_to_Vlogic = true;
+			break;
+		case 7:
+			printf("CIP: gh = 147 \n");					// If VM bit = 1, transmit (Vj) to Vi 
+												// If VM bit = 0, transmit (Vk) to Vi
+			fn_pkt.op[0] = 'M';
+			fn_pkt.reg_no = inst.i;
+			latency = 1;
+			sendVM_to_Vlogic = true;
+			break;
+		}												// end of GROUP 14 functions
+		break;
+
+	case 13: switch (inst.h)										// GROUP 15 functions
+     	       {
+		case 0:
+			printf("CIP: gh = 150 \n");					// Single shift of (Vj) left by (Ak) places to Vi 
+			fn_pkt.op[0] = '<';
+			fn_pkt.reg_no = inst.i;
+			sendAV_to_Vshift = true;
+			break;
+		case 1:
+			printf("CIP: gh = 151 \n");					// Single shift of (Vj) right by (Ak) places to Vi 
+			fn_pkt.op[0] = '>';
+			fn_pkt.reg_no = inst.i;
+			sendAV_to_Vshift = true;
+			break;
+		case 2:
+			printf("CIP: gh = 152 \n");					// Double shift of (Vj) left by (Ak) places to Vi 
+			break;
+		case 3:
+			printf("CIP: gh = 153 \n");					// Double shift of (Vj) right by (Ak) places to Vi 
+			break;
+		case 4:
+			printf("CIP: gh = 154 \n");					// Integer sums of (Sj) and (Vk) to Vi 
+												// Send function and dest reg info to Vadd
+												// Invoke send1_to_Vadd in Sregs & Vregs
+			fn_pkt.op[0] = '+';
+			fn_pkt.reg_no = inst.i;
+			latency = 3;
+			sendSV_to_Vadd = true;
+			break;
+		case 5:
+			printf("CIP: gh = 155 \n");					// Integer sums of (Vj) and (Vk) to Vi 
+												// Send function and dest reg info to Vadd
+												// Invoke send2_to_Vadd in Vregs
+			fn_pkt.op[0] = '+';
+			fn_pkt.reg_no = inst.i;
+			latency = 3;
+			sendVV_to_Vadd = true;
+			break;
+		case 6:
+			printf("CIP: gh = 156 \n");					// Integer differences of (Sj) and (Vk) to Vi 
+			fn_pkt.op[0] = '-';
+			fn_pkt.reg_no = inst.i;
+			latency = 3;
+			sendSV_to_Vadd = true;
+			break;
+		case 7:
+			printf("CIP: gh = 157 \n");					// Integer differences of (Vj) and (Vk) to Vi 
+												// Send function and dest reg info to Vadd
+												// Invoke send2_to_Vadd in Vregs
+			fn_pkt.op[0] = '-';
+			fn_pkt.reg_no = inst.i;
+			latency = 3;
+			sendVV_to_Vadd = true;
+			break;
+		}												// end of GROUP 15 functions
+		break;
+
+	case 14: switch (inst.h)										// GROUP 16 functions
+     	       {
+		case 0:
+			printf("CIP: gh = 160 \n");					// Floating product of (Sj) and (Vk) to Vi 
+												// Send function and dest reg info to Fmul
+												// Invoke send1_to_Fmul in Sregs & Vregs
+												//  Special case: (Sj) = 0 if j = 0
+			fn_pkt.op[0] = '*';
+			fn_pkt.op[1] = '1';
+			fn_pkt.reg_no = inst.i;
+			latency = 8;
+			sendSV_to_Fmul = true;
+			break;
+		case 1:
+			printf("CIP: gh = 161 \n");					// Floating product of (Vj) and (Vk) to Vi 
+												// Send function and dest reg info to Fmul
+												// Invoke send2_to_Fmul in Vregs
+			fn_pkt.op[0] = '*';
+			fn_pkt.op[1] = '2';
+			fn_pkt.reg_no = inst.i;
+			latency = 8;
+			sendVV_to_Fmul = true;
+			break;
+		case 2:
+			printf("CIP: gh = 162 \n");					// Half precision rounded fl. product of (Sj) and (Vk)
+			stop_nul = true;						// not yet implemented
+			break;
+		case 3:
+			printf("CIP: gh = 163 \n");					// Half precision rounded fl. product of (Vj) and (Vk)
+			stop_nul = true;						// not yet implemented
+			break;
+		case 4:
+			printf("CIP: gh = 164 \n");					// Rounded floating product of (Sj) and (Vk) to Vi 
+			stop_nul = true;						// not yet implemented
+			break;
+		case 5:
+			printf("CIP: gh = 165 \n");					// Rounded floating product of (Vj) and (Vk) to Vi 
+			stop_nul = true;						// not yet implemented
+			break;
+		case 6:
+			printf("CIP: gh = 166 \n");					// Reciprocal iterations; 2 - (Sj) * (Vk)k to Vi 
+			stop_nul = true;						// not yet implemented
+			break;
+		case 7:
+			printf("CIP: gh = 167 \n");					// Reciprocal iterations; 2 - (Vj) * (Vk) to Vi
+			stop_nul = true;						// not yet implemented
+			break;
+		}												// end of GROUP 16 functions
+		break;
+
+	case 15: switch (inst.h)										// GROUP 17 functions
+     	       {
+		case 0:
+			printf("CIP: gh = 170 \n");					// Floating sums of (Sj) and (Vk) to Vi 
+												// Send function and dest reg info to Fadd
+												// Invoke send1_to_Fadd in Sregs & Vregs
+												//  Special case: (Sj) = 0 if j = 0
+			fn_pkt.op[0] = '+';
+			fn_pkt.op[1] = '1';
+			fn_pkt.reg_no = inst.i;
+			latency = 7;
+			sendSV_to_Fadd = true;
+			break;
+		case 1:
+			printf("CIP: gh = 171 \n");					// Floating sums of (Vj) and (Vk) to Vi 
+												// Send function and dest reg info to Fadd
+												// Invoke send2_to_Fadd in Vregs
+			fn_pkt.op[0] = '+';
+			fn_pkt.op[1] = '2';
+			fn_pkt.reg_no = inst.i;
+			latency = 7;
+			sendVV_to_Fadd = true;
+			break;
+		case 2:
+			printf("CIP: gh = 172 \n");					// Floating differences of (Sj) and (Vk) to Vi 
+												// Send function and dest reg info to Fadd
+												// Invoke send1_to_Fadd in Sregs & Vregs
+												//  Special case: (Sj) = 0 if j = 0
+			fn_pkt.op[0] = '-';
+			fn_pkt.op[1] = '1';
+			fn_pkt.reg_no = inst.i;
+			latency = 7;
+			sendSV_to_Fadd = true;
+			break;
+		case 3:
+			printf("CIP: gh = 173 \n");					// Floating differences of (Vj) and (Vk) to Vi 
+												// Send function and dest reg info to Fadd
+												// Invoke send2_to_Fadd in Vregs
+			fn_pkt.op[0] = '-';
+			fn_pkt.op[1] = '2';
+			fn_pkt.reg_no = inst.i;
+			latency = 7;
+			sendVV_to_Fadd = true;
+
+			break;
+		case 4:
+			printf("CIP: gh = 174 \n");					// Floating reciprocal aprox. of (Vj) to Vi
+			stop_nul = true;						// not yet implemented
+			break;
+		case 5:
+			printf("CIP: gh = 175 \n");					// Test (Vj); enter results into VM; k defines test
+			fn_pkt.op[0] = 'T';
+			k = inst.k & 3;
+			switch (k)
+			 {
+			  case 0: fn_pkt.op[1] = '0';
+				break;
+			  case 1: fn_pkt.op[1] = '1';
+				break;
+			  case 2: fn_pkt.op[1] = '2';
+				break;
+			   case 3: fn_pkt.op[1] = '3';
+				break;
+			 }			
+			sendV_to_Vlogic = true;
+			break;
+		case 6:
+			printf("CIP: gh = 176 \n");		// Block transfer: Memory to Vi 
+									// transfers (VL) words from memory starting at (A0)
+									// (Ak) specifies address increment
+									// Sends function to Vregs
+									// Invokes send_to_Vregs in Aregs
+			tr_pkt.type = MtoV;
+			tr_pkt.i = inst.i;
+			tr_pkt.j = 0;		// not used
+			tr_pkt.k = inst.k;
+			transmit_V = true;
+			break;
+		case 7:
+			printf("CIP: gh = 177 \n");					// Block transfer: (Vj) to Memory
+									// transfers (VL) words from Vj starting at (A0)
+									// (Ak) specifies address increment
+									// Sends function to Vregs
+									// Invokes send_to_Vregs in Aregs
+			tr_pkt.type = VtoM;
+			tr_pkt.i = 0;		// not used
+			tr_pkt.j = inst.j;
+			tr_pkt.k = inst.k;
+			transmit_V = true;
+			break;
+		}												// end of GROUP 17 functions
+       }					// end of swtich(inst.g)
+
+     }				// end of if (packet from NIP)
+     else 
+     {parcel_number = 1;}
+
+   if (my_state != old_state)
+    {
+     display_Instruction();			// displayed in icon
+     dump_state();
+     old_state = my_state;
+    }
+
+
+ // -------------------------------------------------------------------------------------------------------------------------------------------      
+$phase1
+
+printf("CIP clock cycle %d phase 1 \n", cycle);
+cycle ++;
+
+// progress register entry queues
+
+ for (i=5; i>0; i--)
+  {
+   A_entry[i] = A_entry[i-1];
+   A_entries[i] = A_entries[i-1];
+  }
+ A_entry[0] = 0;
+ A_entries[0] = '-';
+
+ for (i=13; i>0; i--)
+  {
+   S_entry[i] = S_entry[i-1];
+   S_entries[i] = S_entries[i-1];
+  }
+ S_entry[0] = 0;
+ S_entries[0] = '-';
+
+ if (no_op)
+  {
+    my_state = CIP_IDLE;
+    no_op = false;
+  }
+
+ if (Block_transfer)
+  {cip_held = true;}
+
+ else
+  {
+ if (transmit_VL)															// 0020
+  {
+	send_TR_PKT (to_v_regs,  tr_pkt);
+//	myVregs->Vregs_Busy = true;
+	myAregs->transmit1_V(inst.k);
+	my_state = CIP_IDLE;
+	cip_ready = true;
+	transmit_VL = false;
+  }
+
+  if (transmit_StoVM)															// 003
+   {
+	if (!mySregs->reserved[tr_pkt.j] && (S_entry[13-latency] != 1) )
+	 {
+	   mySregs->send_to_Vmask (inst.j);
+	   my_state = CIP_IDLE;
+	   cip_ready = true;
+	   transmit_StoVM = false;
+	 }
+   else
+	 {cip_held = true;}
+   }
+
+
+ if (transmit_B && (tr_pkt.type == BtoP))											// 005
+    {
+	if ( !myBregs->Bregs_Busy)
+	 {
+	   send_TR_PKT (to_b_regs,  tr_pkt);
+	   myBregs->Bregs_Busy = true;
+	   myNIP->clear_pipe();
+	   myIBuff->clear_pipe();
+	   my_state = CIP_IDLE;
+	   cip_ready = true;
+	   transmit_B = false;
+	 }
+   else
+	 {cip_held = true;}
+  }
+
+   if (branch)
+   {
+//printf("CIP: executing branch, type = %d, AReg 0 = %d \n", br_inst.type, myAregs->ARegs[0].a_int);
+    if ( (br_inst.type == UL)	
+       || ( ( (br_inst.type == ANZ) ||  (br_inst.type == AZ) ||  (br_inst.type == AP) ||  (br_inst.type == AN) )
+           && (!myAregs->reserved[0] ) )
+       || ( ( (br_inst.type == SNZ) ||  (br_inst.type == SZ) ||  (br_inst.type == SP) ||  (br_inst.type == SN) )
+           && (!mySregs->reserved[0]) )
+      )
+     {
+       if (  (br_inst.type == UL)												// 006
+	 ||  ((br_inst.type == AZ) && (myAregs->ARegs[0].a_int == 0))				// 010
+          ||  ((br_inst.type == ANZ) && (myAregs->ARegs[0].a_int != 0))				// 011
+          ||  ((br_inst.type == AP) && (myAregs->ARegs[0].a_int >= 0))				// 012
+          ||  ((br_inst.type == AN) && (myAregs->ARegs[0].a_int < 0))				// 013
+	 ||  ((br_inst.type == SZ) && (mySregs->SRegs[0].s_int == 0))				// 014
+          ||  ((br_inst.type == SNZ) && (mySregs->SRegs[0].s_int != 0))				// 015
+          ||  ((br_inst.type == SP) && (mySregs->SRegs[0].s_int >= 0))				// 016
+          ||  ((br_inst.type == SN) && (mySregs->SRegs[0].s_int < 0))					// 017
+	 )		
+	{														// condition satisfied
+	  send_BR_ADDRESS (to_p_reg,  br_inst.a);
+//printf("CIP: condition satisfied Branch Address to P register = %s \n", br_inst.a.s6);
+	  myNIP->clear_pipe();
+	  myIBuff->clear_pipe();
+	 }
+     my_state = CIP_IDLE;
+     cip_ready = true;
+     branch = false;
+    }
+   else
+	{cip_held = true;}
+  }
+
+ if (transmit_B && (tr_pkt.type == PtoB))										// 007
+  {
+    if ( !myBregs->Bregs_Busy)
+    {
+	 send_TR_PKT (to_b_regs,  tr_pkt);
+	 myBregs->Bregs_Busy = true;
+	 myPreg->return_jump();
+	sim_hold(1);
+	 send_BR_ADDRESS (to_p_reg,  br_inst.a);
+//printf("CIP: 007 instruction - Branch Address to P register = %s \n", br_inst.a.s6);
+	 myNIP->clear_pipe();
+	 myIBuff->clear_pipe();
+	 my_state = CIP_IDLE;
+	 cip_ready = true;
+	 transmit_B = false;
+    }
+   else
+     {cip_held = true;}
+  }
+
+  if (transmit_LtoA)														// 020, 022
+    {
+printf("CIP: starting transmit_LtoA \n");
+	if (!myAregs->reserved[tr24_pkt.i] && (A_entry[5-latency] != 1) )
+	 {
+	   send_TR24_PKT (to_a_regs,  tr24_pkt);
+//printf("CIP: sending tr24_Pkt to Aregs \n");
+	   myAregs->set_reservation(tr24_pkt.i);
+	   my_state = CIP_IDLE;
+	   cip_ready = true;
+	   transmit_LtoA = false;
+	 }
+   else
+	 {cip_held = true;}
+   }
+
+  if (transmit_StoA)															// 023
+   {
+printf("CIP: starting transmit_StoA \n");
+	if (!myAregs->reserved[tr_pkt.i] && (A_entry[5-latency] != 1) )
+	 {
+	   send_TR_PKT (to_s_regs,  tr_pkt);
+//printf("CIP: sending tr_Pkt to Sregs \n");
+	   myAregs->set_reservation(tr_pkt.i);
+	   my_state = CIP_IDLE;
+	   cip_ready = true;
+	   transmit_StoA = false;
+	 }
+   else
+	 {cip_held = true;}
+   }
+
+  if (transmit_B && (tr_pkt.type == BtoA))											// 024
+    {
+	if (!myAregs->reserved[tr_pkt.i] && (A_entry[5-latency] != 1) && !myBregs->Bregs_Busy)
+	 {
+	   send_TR_PKT (to_b_regs,  tr_pkt);
+	   myBregs->Bregs_Busy = true;
+	   myAregs->set_reservation(tr_pkt.i);
+	   my_state = CIP_IDLE;
+	   cip_ready = true;
+	   transmit_B = false;
+	 }
+   else
+	 {cip_held = true;}
+  }
+
+ if (transmit_B && (tr_pkt.type == AtoB))											// 025
+  {
+    if (!myAregs->reserved[tr_pkt.i] && !myBregs->Bregs_Busy)
+    {
+	  send_TR_PKT (to_b_regs,  tr_pkt);
+	   myBregs->Bregs_Busy = true;
+	   myAregs->transmit1_B(inst.i);
+	   my_state = CIP_IDLE;
+	   cip_ready = true;
+	   transmit_B = false;
+	 }
+   else
+     {cip_held = true;}
+  }
+
+if (send_to_Spop)															// 026, 027
+ {
+   Reg_use_conflict = myAregs->reserved[inst.i] | myAregs->reserved[inst.j];
+
+   if (!Reg_use_conflict && (A_entry[6-latency] != 1))
+    {
+	     send_FN_PKT (to_s_pop,  fn_pkt);
+	     sim_hold(5);
+	     mySregs->send_to_Spop (inst.j);
+	     A_entry[6-latency] = 1;
+	     A_entries[6-latency] = 'P';
+	     myAregs->set_reservation(inst.i);
+//     printf("CIP: requesting S regs, latency = %d \n", latency);
+	     my_state = CIP_IDLE;
+ 	    cip_ready = true;
+	     send_to_Spop = false;
+    }
+  else
+ 	 {cip_held = true;}
+ }
+
+if (send_to_Aadd)															// 030, 031
+  {
+   Reg_use_conflict = myAregs->reserved[inst.i]
+	 			 | myAregs->reserved[inst.j]
+	 			 | myAregs->reserved[inst.k];
+ 
+   if (!Reg_use_conflict && (A_entry[6-latency] != 1))
+     {
+	     send_FN_PKT (to_a_add,  fn_pkt);
+	     sim_hold(5);
+	     myAregs->send_to_Aadd (inst.i, inst.j, inst.k);
+	     myAregs->set_reservation(inst.i);
+	     A_entry[6-latency] = 1;
+	     A_entries[6-latency] = 'A';
+	     my_state = CIP_IDLE;
+	     cip_ready = true;
+	     send_to_Aadd = false;
+     }
+   else
+		{cip_held = true;}
+  }
+
+ if (send_to_Amul)															// 032
+  {
+   Reg_use_conflict = myAregs->reserved[inst.i]
+	 			 | myAregs->reserved[inst.j]
+	 			 | myAregs->reserved[inst.k];
+ 
+   if (!Reg_use_conflict) // doesn't need to check entry Q because it can't catch an ADD
+    {
+	   send_FN_PKT (to_a_mul,  fn_pkt);
+	   sim_hold(5);
+	   myAregs->send_to_Amul (inst.i, inst.j, inst.k);
+	   myAregs->set_reservation(inst.i);
+	   A_entry[6-latency] = 1;
+	   A_entries[0] = 'M';
+	   my_state = CIP_IDLE;
+	   cip_ready = true;
+	   send_to_Amul = false;
+    }
+   else
+  	  {cip_held = true;}
+  }
+
+ if (transmit_B && ( (tr_pkt.type == MtoB) || (tr_pkt.type == BtoM) ) )					// 034, 035
+  {
+   Reg_use_conflict = myAregs->reserved[0] | myAregs->reserved[inst.i];
+
+//	if (!Reg_use_conflict && !myBregs->Bregs_Busy)
+	if (!Reg_use_conflict )
+	 {
+	   send_TR_PKT (to_b_regs,  tr_pkt);
+	   myBregs->Bregs_Busy = true;
+	   sim_hold(5);
+	   myAregs->transmit2_B(inst.i);
+	   my_state = CIP_IDLE;
+	   cip_ready = true;
+	   transmit_B = false;
+	   Block_transfer = true;
+	 } 
+   else
+	 {cip_held = true;}
+  }
+
+if (transmit_T && ( (tr_pkt.type == MtoT) || (tr_pkt.type == TtoM) ) )					// 036, 037
+  {
+   Reg_use_conflict = myAregs->reserved[0] | myAregs->reserved[inst.i];
+
+//     if (!Reg_use_conflict && !myTregs->Tregs_Busy)
+     if (!Reg_use_conflict)
+	{
+	   send_TR_PKT (to_t_regs,  tr_pkt);
+	   myTregs->Tregs_Busy = true;
+	   sim_hold(5);
+	   myAregs->transmit2_T(inst.i);
+	   my_state = CIP_IDLE;
+	   cip_ready = true;
+	   transmit_T = false;
+	   Block_transfer = true;
+	}
+   else
+	 {cip_held = true;}
+  }
+
+  if (transmit_LtoS)															// 040, 041
+   {
+//printf("CIP: starting transmit_LtoS \n");
+	if (!mySregs->reserved[tr64_pkt.i] && (S_entry[13-latency] != 1) )
+	 {
+	   send_TR64_PKT (to_s_regs,  tr64_pkt);
+//printf("CIP: sending tr64_Pkt to Sregs , reg_no = %d value = %s \n", tr64_pkt.i,  tr64_pkt.s.s16);
+	   mySregs->set_reservation(tr64_pkt.i);
+	   my_state = CIP_IDLE;
+	   cip_ready = true;
+	   transmit_LtoS = false;
+	 }
+   else
+	 {cip_held = true;}
+   }
+
+
+if (send_to_Sshift0)													// 052, 053
+ {
+   Reg_use_conflict = mySregs->reserved[0] | mySregs->reserved[inst.i]; 
+
+   if (!Reg_use_conflict && (S_entry[13-latency] != 1))
+    {
+	   send_SFN_PKT (to_s_shift,  sfn_pkt);
+	   sim_hold(5);
+	   mySregs->send_to_Sshift (inst.i);
+	   mySregs->set_reservation(0);
+	   S_entry[13-latency] = 1;
+	   S_entries[13-latency] = 'S';
+	   printf("CIP: requesting S regs, latency = %d \n", latency);
+	   my_state = CIP_IDLE;
+	   cip_ready = true;
+	   send_to_Sshift0 = false;
+    }
+   else
+	       {cip_held = true;}
+  }
+if (send_to_Sshift)													// 054, 055
+ {
+   Reg_use_conflict = mySregs->reserved[inst.i]; 
+
+   if (!Reg_use_conflict && (S_entry[13-latency] != 1))
+    {
+	   send_SFN_PKT (to_s_shift,  sfn_pkt);
+	   sim_hold(5);
+	   mySregs->send_to_Sshift (inst.i);
+	   mySregs->set_reservation(inst.i);
+	   S_entry[13-latency] = 1;
+	   S_entries[13-latency] = 'S';
+	   printf("CIP: requesting S regs, latency = %d \n", latency);
+	   my_state = CIP_IDLE;
+	   cip_ready = true;
+	   send_to_Sshift = false;
+    }
+   else
+	       {cip_held = true;}
+  }
+
+if (send_to_Slogic)														// 042, 043
+ {
+   Reg_use_conflict = mySregs->reserved[inst.i];
+
+   if (!Reg_use_conflict && (S_entry[13-latency] != 1))
+    {
+	   send_SFN_PKT (to_s_logic,  sfn_pkt);
+	   sim_hold(5);
+	   mySregs->set_reservation(inst.i);
+	   S_entry[13-latency] = 1;
+	   S_entries[13-latency] = 'L';
+	   my_state = CIP_IDLE;
+	   cip_ready = true;
+	   send_to_Slogic = false;
+    }
+  else
+  {cip_held = true;}
+ }
+
+if (send2_to_Slogic)													// 044-047,  051
+ {
+   Reg_use_conflict = mySregs->reserved[inst.i]
+	 			 | mySregs->reserved[inst.j]
+				 | mySregs->reserved[inst.k];
+
+   if (!Reg_use_conflict && (S_entry[13-latency] != 1))
+    {
+	   send_FN_PKT (to_s_logic,  fn_pkt);
+	   sim_hold(5);
+	   mySregs->send_to_Slogic (inst.i, inst.j, inst.k);
+	   mySregs->set_reservation(inst.i);
+	   S_entry[13-latency] = 1;
+	   S_entries[13-latency] = 'L';
+	   printf("CIP: requesting S regs, latency = %d \n", latency);
+	   my_state = CIP_IDLE;
+	   cip_ready = true;
+	    send2_to_Slogic = false;
+    }
+  else
+  {cip_held = true;}
+ }
+
+if (send_to_Sadd)														// 060, 061
+ {
+   Reg_use_conflict = mySregs->reserved[inst.i]
+	 			 | mySregs->reserved[inst.j]
+				 | mySregs->reserved[inst.k];
+
+   if (!Reg_use_conflict && (S_entry[13-latency] != 1))
+    {
+	   send_FN_PKT (to_s_add,  fn_pkt);
+	   sim_hold(5);
+	   mySregs->send_to_Sadd (inst.i, inst.j, inst.k);
+	   mySregs->set_reservation(inst.i);
+	   S_entry[13-latency] = 1;
+	   S_entries[13-latency] = 'A';
+	   printf("CIP: requesting S regs, latency = %d \n", latency);
+	   my_state = CIP_IDLE;
+	   cip_ready = true;
+	    send_to_Sadd = false;
+    }
+  else
+  {cip_held = true;}
+ }
+
+  if (send_to_VM)															// 073
+   {
+//printf("CIP: starting send_to_VM \n");
+//	if (!mySregs->reserved[tr_pkt.i] && (S_entry[5-latency] != 1) && !myVM->VM_busy)
+	if (!mySregs->reserved[inst.i] && (S_entry[5-latency] != 1) )
+	 {
+	   send_FN_PKT (to_v_mask,  fn_pkt);
+printf("CIP: sending fn_pkt to VM \n");
+	   mySregs->set_reservation(inst.i);
+	   my_state = CIP_IDLE;
+	   cip_ready = true;
+	   send_to_VM = false;
+	 }
+   else
+	 {cip_held = true;}
+   }
+
+  if (transmit_T && (tr_pkt.type == TtoS))										// 074
+    {
+      if (!mySregs->reserved[tr_pkt.i] && (S_entry[5-latency] != 1) && !myTregs->Tregs_Busy)
+	 {
+	   send_TR_PKT (to_t_regs,  tr_pkt);
+	   myTregs->Tregs_Busy = true;
+	   mySregs->set_reservation(tr_pkt.i);
+	   my_state = CIP_IDLE;
+	   cip_ready = true;
+	   transmit_T = false;
+	 }
+   else
+	 {cip_held = true;}
+  }
+
+   if (transmit_T && (tr_pkt.type == StoT))									// 075
+    {
+      if (!mySregs->reserved[tr_pkt.i] && !myTregs->Tregs_Busy)
+        {
+	   send_TR_PKT (to_t_regs,  tr_pkt);
+	   myTregs->Tregs_Busy = true;
+	   mySregs->transmit1_T(inst.i);
+	   my_state = CIP_IDLE;
+	   cip_ready = true;
+	   transmit_T = false;
+	}
+   else
+	 {cip_held = true;}
+  }
+
+   if (transmit_V && (tr_pkt.type == VtoS))									// 076
+    {
+	Reg_use_conflict =  mySregs->reserved[tr_pkt.i]
+					| myVregs->reserved[tr_pkt.j] 
+					| myAregs->reserved[tr_pkt.k];
+
+      if (!Reg_use_conflict)
+         {
+	   send_TR_PKT (to_v_regs,  tr_pkt);
+	   myAregs->transmit1_V(inst.k);
+	   mySregs->set_reservation(tr_pkt.i);
+	   my_state = CIP_IDLE;
+	   cip_ready = true;
+	   transmit_V = false;
+	}
+   else
+	 {cip_held = true;}
+  }
+
+  if (transmit_V && (tr_pkt.type == StoV))									// 077
+    {
+	Reg_use_conflict =  myVregs->reserved[tr_pkt.i]
+					| mySregs->reserved[tr_pkt.j] 
+					| myAregs->reserved[tr_pkt.k];
+
+      if (!Reg_use_conflict)
+        {
+	   send_TR_PKT (to_v_regs,  tr_pkt);
+	   myAregs->transmit1_V(inst.k);
+	   mySregs->transmit1_V(inst.j);
+	   myVregs->set_reservation(inst.i);
+	   my_state = CIP_IDLE;
+	   cip_ready = true;
+	   transmit_V = false;
+	}
+   else
+	 {cip_held = true;}
+  }
+
+if (transmit_RStoA && (rs_pkt.op == 10))								// 10h
+ {
+   	if (!myAregs->reserved[rs_pkt.i_reg] && (!myAregs->reserved[rs_pkt.h_reg]  && A_entry[5-latency] != 1) )
+	 {
+	   send_RS_PKT (to_a_regs,  rs_pkt);
+//printf("CIP: sending rs_pkt 10 to Aregs \n");
+	   myAregs->set_reservation(rs_pkt.i_reg);
+	   my_state = CIP_IDLE;
+	   cip_ready = true;
+	   transmit_RStoA = false;
+	  }
+      else
+	 {cip_held = true;}
+  }
+
+if (transmit_RStoA && (rs_pkt.op == 11))								// 11h
+ {
+   	if (!myAregs->reserved[rs_pkt.i_reg] && (!myAregs->reserved[rs_pkt.h_reg]))
+	 {
+	   send_RS_PKT (to_a_regs,  rs_pkt);
+//printf("CIP: sending rs_pkt 11 to Aregs \n");
+	   my_state = CIP_IDLE;
+	   cip_ready = true;
+	   transmit_RStoA = false;
+	  }
+      else
+	 {cip_held = true;}
+  }
+
+if (transmit_RStoA && (rs_pkt.op == 12)	)							//12h
+  {
+  	if (!mySregs->reserved[rs_pkt.i_reg] && (!myAregs->reserved[rs_pkt.h_reg]  && S_entry[5-latency] != 1) )
+	 {
+	    send_RS_PKT (to_a_regs,  rs_pkt);
+	    send_RS_PKT (to_s_regs,  rs_pkt);
+//printf("CIP: sending rs_pkt 12 to Aregs and Sregs \n");
+	    mySregs->set_reservation(rs_pkt.i_reg);
+	   my_state = CIP_IDLE;
+	   cip_ready = true;
+	   transmit_RStoA = false;
+	  }
+      else
+	 {cip_held = true;}
+  }
+
+if (transmit_RStoA && (rs_pkt.op == 13)	)							//13h
+  {
+  	if (!mySregs->reserved[rs_pkt.i_reg] && !myAregs->reserved[rs_pkt.h_reg] )
+	 {
+	    send_RS_PKT (to_a_regs,  rs_pkt);
+//printf("CIP: sending rs_pkt 13 to Aregs  \n");
+	    mySregs->set_reservation(rs_pkt.i_reg);
+	   my_state = CIP_IDLE;
+	   cip_ready = true;
+	   transmit_RStoA = false;
+	  }
+      else
+	 {cip_held = true;}
+  }
+
+if (sendSV_to_Vlogic)														// 140, 142, 144
+ {
+   Reg_use_conflict = myVregs->reserved[inst.i]
+	 			 | mySregs->reserved[inst.j]
+				 | (myVregs->reserved[inst.k] && !(myVregs->chain_slot[inst.k] == 1));
+
+   if (!Reg_use_conflict && !Vlogic_busy) 
+    {
+	   Vlogic_busy = true;
+	   send_FN_PKT (to_v_logic,  fn_pkt);
+	   sim_hold(5);
+	   mySregs->send_to_Vlogic (inst.j);
+	   myVregs->sendV_to_Vlogic (inst.k);
+	   myVregs->set_reservation(inst.i);
+	   if (myVregs->chain_slot[inst.k] == 0)
+	    {myVregs->set_reservation(inst.k);}
+	   else
+	    {myVregs->set_chaining(inst.k);}
+
+	   printf("CIP: requesting V regs, latency = %d \n", latency);
+	   my_state = CIP_IDLE;
+	   cip_ready = true;
+	   sendSV_to_Vlogic = false;
+    }
+  else
+  {cip_held = true;}
+ }
+
+if (sendVV_to_Vlogic)														// 141, 143, 145
+ {
+   Reg_use_conflict = myVregs->reserved[inst.i]
+	 			 |  (myVregs->reserved[inst.j] && !(myVregs->chain_slot[inst.j] == 1))
+				 | (myVregs->reserved[inst.k] && !(myVregs->chain_slot[inst.k] == 1));
+
+   if (!Reg_use_conflict && !Vlogic_busy) 
+    {
+	   Vlogic_busy = true;
+	   send_FN_PKT (to_v_logic,  fn_pkt);
+	   sim_hold(5);
+	   myVregs->sendVV_to_Vlogic (inst.j, inst.k);
+	   myVregs->set_reservation(inst.i);
+	   if (myVregs->chain_slot[inst.j] == 0)
+	    {myVregs->set_reservation(inst.j);}
+	   else
+	    {myVregs->set_chaining(inst.j);}
+	   if (myVregs->chain_slot[inst.k] == 0)
+	    {myVregs->set_reservation(inst.k);}
+	   else
+	    {myVregs->set_chaining(inst.k);}
+	   printf("CIP: requesting V regs, latency = %d \n", latency);
+	   my_state = CIP_IDLE;
+	   cip_ready = true;
+	   sendVV_to_Vlogic = false;
+    }
+  else
+  {cip_held = true;}
+ }
+
+if (sendSM_to_Vlogic)														// 146
+ {
+   Reg_use_conflict = myVregs->reserved[inst.i]
+	 			 | mySregs->reserved[inst.j]
+				 | (myVregs->reserved[inst.k] && !(myVregs->chain_slot[inst.k] == 1));
+
+   if (!Reg_use_conflict && !Vlogic_busy) 
+    {
+	   Vlogic_busy = true;
+	   send_FN_PKT (to_v_logic,  fn_pkt);
+	   sim_hold(5);
+	   mySregs->send_to_Vlogic (inst.j);
+	   myVregs->sendSM_to_Vlogic (inst.k);
+	   myVregs->set_reservation(inst.i);
+	   if (myVregs->chain_slot[inst.k] == 0)
+	    {myVregs->set_reservation(inst.k);}
+	   else
+	    {myVregs->set_chaining(inst.k);}
+
+	   printf("CIP: requesting V regs, latency = %d \n", latency);
+	   my_state = CIP_IDLE;
+	   cip_ready = true;
+	   sendSM_to_Vlogic = false;
+    }
+  else
+  {cip_held = true;}
+ }
+
+if (sendVM_to_Vlogic)														// 147
+ {
+   Reg_use_conflict = myVregs->reserved[inst.i]
+	 			 |  (myVregs->reserved[inst.j] && !(myVregs->chain_slot[inst.j] == 1))
+				 | (myVregs->reserved[inst.k] && !(myVregs->chain_slot[inst.k] == 1));
+
+   if (!Reg_use_conflict && !Vlogic_busy) 
+    {
+	  Vlogic_busy = true;
+	  send_FN_PKT (to_v_logic,  fn_pkt);
+	  sim_hold(5);
+	  myVregs->sendVM_to_Vlogic (inst.j, inst.k);		// Vregs packet to Vlogic includes VM bit
+	  myVregs->set_reservation(inst.i);
+	  if (myVregs->chain_slot[inst.j] == 0)
+	   {myVregs->set_reservation(inst.j);}
+	  else
+	   {myVregs->set_chaining(inst.j);}
+	  if (myVregs->chain_slot[inst.k] == 0)
+	   {myVregs->set_reservation(inst.k);}
+	  else
+	   {myVregs->set_chaining(inst.k);}
+	  printf("CIP: requesting V regs, latency = %d \n", latency);
+	  my_state = CIP_IDLE;
+	  cip_ready = true;
+	  sendVM_to_Vlogic = false;
+    }
+  else
+  {cip_held = true;}
+ }
+
+if (sendAV_to_Vshift)														// 151, 152
+ {
+   Reg_use_conflict = myVregs->reserved[inst.i]
+	 			 |  (myVregs->reserved[inst.j] && !(myVregs->chain_slot[inst.j] == 1));
+
+   if (!Reg_use_conflict && !Vshift_busy) 
+    {
+	Vshift_busy = true;
+	send_FN_PKT (to_v_shift, fn_pkt);
+	sim_hold(5);
+	myVregs->sendV_to_Vshift (inst.j);
+	myAregs->send_to_Vshift(inst.k);
+	myVregs->set_reservation(inst.i);
+	 if (myVregs->chain_slot[inst.j] == 0)
+	  {myVregs->set_reservation(inst.j);}
+	 else
+	  {myVregs->set_chaining(inst.j);}
+	 my_state = CIP_IDLE;
+	 cip_ready = true;
+	sendAV_to_Vshift = false;
+    }
+  else
+  {cip_held = true;}
+ }
+
+if (sendSV_to_Vadd)														// 154, 156
+ {
+   Reg_use_conflict = myVregs->reserved[inst.i]
+	 			 | mySregs->reserved[inst.j]
+				 | (myVregs->reserved[inst.k] && !(myVregs->chain_slot[inst.k] == 1));
+//printf("CIP: V%d reserved = %d, chain_slot = %d \n", inst.k, myVregs->reserved[inst.k], myVregs->chain_slot[inst.k] );
+
+   if (!Reg_use_conflict && !Vadd_busy) 
+    {
+	   Vadd_busy = true;
+	   send_FN_PKT (to_v_add,  fn_pkt);
+	   sim_hold(5);
+	   mySregs->send_to_Vadd (inst.j);
+	   myVregs->sendV_to_Vadd (inst.k);
+	   myVregs->set_reservation(inst.i);
+	   if (myVregs->chain_slot[inst.k] == 0)
+	    {myVregs->set_reservation(inst.k);}
+	   else
+	    {myVregs->set_chaining(inst.k);}
+	   printf("CIP: requesting V regs, latency = %d \n", latency);
+	   my_state = CIP_IDLE;
+	   cip_ready = true;
+	   sendSV_to_Vadd = false;
+    }
+  else
+  {cip_held = true;}
+ }
+
+if (sendVV_to_Vadd)														// 155, 157
+ {
+   Reg_use_conflict = myVregs->reserved[inst.i]
+	 			 |  (myVregs->reserved[inst.j] && !(myVregs->chain_slot[inst.j] == 1))
+				 | (myVregs->reserved[inst.k] && !(myVregs->chain_slot[inst.k] == 1));
+
+   if (!Reg_use_conflict && !Vadd_busy)
+    {
+	   Vadd_busy = true;
+	   send_FN_PKT (to_v_add,  fn_pkt);
+	   sim_hold(5);
+	   myVregs->sendVV_to_Vadd (inst.j, inst.k);
+	   myVregs->set_reservation(inst.i);
+	   if (myVregs->chain_slot[inst.j] == 0)
+	    {myVregs->set_reservation(inst.j);}
+	   else
+	    {myVregs->set_chaining(inst.j);}
+	   if (myVregs->chain_slot[inst.k] == 0)
+	    {myVregs->set_reservation(inst.k);}
+	   else
+	    {myVregs->set_chaining(inst.k);}
+	   printf("CIP: requesting 2V regs, latency = %d \n", latency);
+	   my_state = CIP_IDLE;
+	   cip_ready = true;
+	   sendVV_to_Vadd = false;
+    }
+  else
+  {cip_held = true;}
+ }
+
+if (sendSV_to_Fmul)														// 160
+ {
+   Reg_use_conflict = myVregs->reserved[inst.i]
+	 			 | mySregs->reserved[inst.j]
+				 | (myVregs->reserved[inst.k] && !(myVregs->chain_slot[inst.k] == 1));
+//printf("CIP: SV_to_Fmul V%d reserved = %d, V%d reserved = %d, chain_slot = %d \n", inst.i, myVregs->reserved[inst.i],  inst.k, myVregs->reserved[inst.k], myVregs->chain_slot[inst.k] );
+
+   if (!Reg_use_conflict && !Fmul_busy) 
+    {
+	   Fmul_busy = true;
+	   send_FN_PKT (to_f_mul,  fn_pkt);
+	   sim_hold(5);
+	   mySregs->send_to_Fmul (inst.j);
+	   myVregs->sendV_to_Fmul (inst.k);
+	   myVregs->set_reservation(inst.i);
+	   if (myVregs->chain_slot[inst.k] == 0)
+	    {myVregs->set_reservation(inst.k);}
+	   else
+	    {myVregs->set_chaining(inst.k);}
+	   printf("CIP: requesting V regs, latency = %d \n", latency);
+	   my_state = CIP_IDLE;
+	   cip_ready = true;
+	   sendSV_to_Fmul = false;
+    }
+  else
+  {cip_held = true;}
+ }
+
+if (sendVV_to_Fmul)														// 161
+ {
+   Reg_use_conflict = myVregs->reserved[inst.i]
+	 			 |  (myVregs->reserved[inst.j] && !(myVregs->chain_slot[inst.j] == 1))
+				 | (myVregs->reserved[inst.k] && !(myVregs->chain_slot[inst.k] == 1));
+
+   if (!Reg_use_conflict && !Fmul_busy)
+    {
+	   Fmul_busy = true;
+	   send_FN_PKT (to_f_mul,  fn_pkt);
+	   sim_hold(5);
+	   myVregs->sendVV_to_Fmul (inst.j, inst.k);
+	   myVregs->set_reservation(inst.i);
+	   if (myVregs->chain_slot[inst.j] == 0)
+	    {myVregs->set_reservation(inst.j);}
+	   else
+	    {myVregs->set_chaining(inst.j);}
+	   if (myVregs->chain_slot[inst.k] == 0)
+	    {myVregs->set_reservation(inst.k);}
+	   else
+	    {myVregs->set_chaining(inst.k);}
+	   printf("CIP: requesting 2V regs, latency = %d \n", latency);
+	   my_state = CIP_IDLE;
+	   cip_ready = true;
+	   sendVV_to_Fmul = false;
+    }
+  else
+  {cip_held = true;}
+ }
+
+if (sendSV_to_Fadd)														// 170, 172
+ {
+   Reg_use_conflict = myVregs->reserved[inst.i]
+	 			 | mySregs->reserved[inst.j]
+				 | (myVregs->reserved[inst.k] && !(myVregs->chain_slot[inst.k] == 1));
+//printf("CIP: SV_to_Fadd V%d reserved = %d, V%d reserved = %d, chain_slot = %d \n", inst.i, myVregs->reserved[inst.i],  inst.k, myVregs->reserved[inst.k], myVregs->chain_slot[inst.k] );
+
+   if (!Reg_use_conflict && !Fadd_busy)
+    {
+	   Fadd_busy = true;
+	   send_FN_PKT (to_f_add,  fn_pkt);
+	   sim_hold(5);
+	   mySregs->send_to_Fadd (inst.j);
+	   myVregs->sendV_to_Fadd (inst.k);
+	   myVregs->set_reservation(inst.i);
+	   if (myVregs->chain_slot[inst.k] == 0)
+	    {myVregs->set_reservation(inst.k);}
+	   else
+	    {myVregs->set_chaining(inst.k);}
+	   printf("CIP: requesting V regs, latency = %d \n", latency);
+	   my_state = CIP_IDLE;
+	   cip_ready = true;
+	   sendSV_to_Fadd = false;
+    }
+  else
+  {cip_held = true;}
+ }
+
+if (sendVV_to_Fadd)														// 171 173
+ {
+   Reg_use_conflict = myVregs->reserved[inst.i]
+	 			 |  (myVregs->reserved[inst.j] && !(myVregs->chain_slot[inst.j] == 1))
+				 | (myVregs->reserved[inst.k] && !(myVregs->chain_slot[inst.k] == 1));
+//printf("CIP: VV_to_Fadd Vi=%d reserved = %d, Vj=%d reserved = %d, chain_slot = %d, Vk=%d reserved = %d, chain_slot = %d, Reg_use_conflict = %d \n", inst.i, myVregs->reserved[inst.i],  inst.j, myVregs->reserved[inst.j], myVregs->chain_slot[inst.j], inst.k, myVregs->reserved[inst.k], myVregs->chain_slot[inst.k], Reg_use_conflict );
+
+   if (!Reg_use_conflict && !Fadd_busy)
+    {
+	   Fadd_busy = true;
+	   send_FN_PKT (to_f_add,  fn_pkt);
+	   sim_hold(5);
+	   myVregs->sendVV_to_Fadd (inst.j, inst.k);
+	   myVregs->set_reservation(inst.i);
+	   if (myVregs->chain_slot[inst.j] == 0)
+	    {myVregs->set_reservation(inst.j);}
+	   else
+	    {myVregs->set_chaining(inst.j);}
+	   if (myVregs->chain_slot[inst.k] == 0)
+	    {myVregs->set_reservation(inst.k);}
+	   else
+	    {myVregs->set_chaining(inst.k);}
+	   printf("CIP: requesting 2V regs, latency = %d \n", latency);
+	   my_state = CIP_IDLE;
+	   cip_ready = true;
+	   sendVV_to_Fadd = false;
+    }
+  else
+  {cip_held = true;}
+ }
+
+if (sendV_to_Vlogic)														// 175
+ {
+   Reg_use_conflict = (myVregs->reserved[inst.j] && !(myVregs->chain_slot[inst.j] == 1));
+
+   if (!Reg_use_conflict && !Vlogic_busy)
+    {
+	   Vlogic_busy = true;
+	   send_FN_PKT (to_v_logic,  fn_pkt);
+	   send_FN_PKT (to_v_mask,  fn_pkt);
+	   sim_hold(5);
+	   myVregs->sendV_to_Vlogic (inst.j);
+	   if (myVregs->chain_slot[inst.j] == 0)
+	    {myVregs->set_reservation(inst.j);}
+	   else
+	    {myVregs->set_chaining(inst.j);}
+	   my_state = CIP_IDLE;
+	   cip_ready = true;
+	   sendV_to_Vlogic = false;
+    }
+  else
+  {cip_held = true;}
+ }
+
+if (transmit_V && ( tr_pkt.type == MtoV )	)				// 176
+  {
+    Reg_use_conflict = myAregs->reserved[0] | myAregs->reserved[inst.k] 
+	 			 |  (myVregs->reserved[inst.i] && !(myVregs->chain_slot[inst.i] == 1));
+
+     if (!Reg_use_conflict  && !V_transfer)
+	{
+	   send_TR_PKT (to_v_regs,  tr_pkt);
+	   sim_hold(5);
+	   myAregs->transmit2_V(inst.k);
+	   if (myVregs->chain_slot[inst.i] == 0)
+	    {myVregs->set_reservation(inst.i);}
+	   else
+	    {myVregs->set_chaining(inst.i);}
+	   my_state = CIP_IDLE;
+	   cip_ready = true;
+	   transmit_V = false;
+	   V_transfer = true;
+	}
+   else
+	 {cip_held = true;}
+  }
+
+if (transmit_V && ( tr_pkt.type == VtoM )	)				// 177	can't be chained
+  {
+    Reg_use_conflict = myAregs->reserved[0] | myAregs->reserved[inst.k] |  (myVregs->reserved[inst.j] );
+
+     if (!Reg_use_conflict  && !V_transfer)
+	{
+	   send_TR_PKT (to_v_regs,  tr_pkt);
+	   sim_hold(5);
+	   myAregs->transmit2_V(inst.k);
+	   myVregs->set_reservation(inst.j);
+	   my_state = CIP_IDLE;
+	   cip_ready = true;
+	   transmit_V = false;
+	   V_transfer = true;
+	}
+   else
+	 {cip_held = true;}
+  }
+
+  } // end of else  !Block_transfer
+
+//printf("CIP:                         A_entries = %c %c %c %c %c %c \n", A_entries[0], A_entries[1], A_entries[2], A_entries[3], A_entries[4], A_entries[5]);
+
+//printf("CIP:                         S_entries = %c %c %c %c %c %c %c %c %c %c %c %c %c \n", S_entries[0], S_entries[1], S_entries[2], S_entries[3], S_entries[4], S_entries[5], S_entries[6], S_entries[7], S_entries[8], S_entries[9], S_entries[10], S_entries[11], S_entries[12]);
+
+ if (cip_held)
+  {my_state = CIP_HELD;}
+
+ if (my_state != old_state)
+  {dump_state();
+  old_state = my_state;}
+
+if (stop004 || stop_nul)
+ {
+  my_state = CIP_IDLE;
+  dump_state();
+  stopSimulation();
+  }
+
+$report
+
+ if (stop000)
+  {printf("Simulation stopped by 000 instruction \n");}
+
+ if (stop004)
+  {printf("Simulation stopped by 004 instruction %d  \n", inst.k);}
+
+ if (stop_nul)
+  {printf("Simulation stopped by %c%c%c instruction, not yet implemented \n", Instruction[0],  Instruction[1],  Instruction[2]);}
+

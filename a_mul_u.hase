@@ -1,0 +1,111 @@
+// Project		Cray 1
+// Entity		Address Multiply Arithmetic Unit
+// File		 a_mul.hase
+// Date		Oct 2017
+//
+// Performs mul (Integer multiply) 
+//  
+
+$class_decls
+
+// Variable Declarations
+
+ int mul_busy[5];
+ int i, overflow;
+ a_2values op_values;
+ fn_packet fn_pkt;
+
+ a_struct mul_result[5], mul_output;		// i = dest_reg, a = 24-bit result
+
+void perform_mul();
+ int Areg_entry(int latency);
+
+$class_defs
+
+void a_mul_u::perform_mul()
+{
+   int op1 = 0;
+   int op2 = 0;
+   int ith_power = 1;
+   int temp_result;
+   for (i=5; i>=0; i--)
+   {
+	op1+= char_to_hex(op_values.op1.s6[i])*ith_power;
+	op2+= char_to_hex(op_values.op2.s6[i])*ith_power;
+	ith_power =ith_power *16;
+   }
+   temp_result = (op1*op2)%(16777216); //discard overflow
+//   printf ( "a_func: %d times %d gives %d", op1, op2, temp_result );
+   for ( i=5; i>=0; i--)
+   {
+	mul_result[0].a.s6[i] = hex_to_char((temp_result% 16));
+	temp_result = temp_result/16;
+   }
+}
+
+$pre
+
+ for (i=0; i<5; i++)
+  {
+   mul_busy[i] = 0;
+   strcpy(mul_result[i].a.s6,  "000000");
+  }
+ my_state = IDLE;
+ dump_state();
+
+$phase0
+
+// receive instruction (if one has been sent) and operands, produce result and set add_done
+
+// predicates for use in sim_waiting tests
+
+ sim_from_port from_A_REGS(from_a_regs);
+ sim_from_port from_CIP(from_cip);
+
+ for (i=4; i>0; i--)
+  {
+   mul_busy[i] = mul_busy[i-1];
+   mul_result[i] = mul_result[i-1];
+  }
+ mul_busy[0] = 0;
+
+if (sim_waiting(ev, from_CIP))
+  {
+			 printf("A_MUL_U getting instruction from CIP\n");
+   SIM_CAST(fn_packet, fn_pkt, ev);
+    mul_busy[0] = 1;
+  }
+
+if ((mul_busy[0] == 1) || (mul_busy[1] == 1) || (mul_busy[2] == 1) || (mul_busy[3] == 1) || (mul_busy[4] == 1))
+  {my_state = BUSY;}
+ else
+  {my_state = IDLE; }
+
+ if (sim_waiting(ev, from_A_REGS))
+  {
+    SIM_CAST(a_2values, op_values, ev);
+			 printf("A_MUL getting instruction \n");
+ 
+   my_state = BUSY;
+   switch (fn_pkt.op[0] )
+     {
+	case '*':
+	   mul_result[0].reg_no = fn_pkt.reg_no;
+	   perform_mul();
+	   mul_busy[0] = true;
+	   break;
+     }
+printf("A_MUL_U result = %s \n", mul_result[0].a.s6);
+  }
+  dump_state();
+
+$phase1
+
+// if mul_busy is set, send output to Aregs
+
+ if (mul_busy[4] == 1)
+  {
+    printf("AU_MUL_U: sending mul output = %s \n", mul_result[4].a.s6);
+    send_A_PKT( to_a_regs, mul_result[4] );
+    mul_busy[4] = 0;
+   }

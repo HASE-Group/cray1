@@ -1,0 +1,907 @@
+PROJECT (
+   PREAMBLE (
+	NAME "cray1"
+	AUTHOR "Helen Berrington + Roland Ibbett"
+	VERSION 2.1
+	DESCRIPTION "Cray 1 Architecture"
+   )
+   PARAMLIB (
+
+-- Definition of  instruction words
+	STRUCT (t_cray1_instrn, [RINT (g,0),
+						  RINT (h,0),
+						  RINT (i,0),
+						  RINT (j,0),
+						  RINT (k,0)]);
+
+	STRUCT (t_cray1_instrn32, [RINT (g,0),
+						       RINT (h,0),
+					   	       RINT (i,0),
+						       RINT (j,0),
+						       RINT (k,0),
+						       RINT (m,0)]);
+	STRUCT (t_instrn, [RINT (parcels,0),
+			RSTRUCT(t_cray1_instrn, instrn)]);
+
+-- definition for 24-bit A or B register contents (in hexadecimal format)
+	STRUCT (t_twentyfour_bit , [ RSTRING (s6, "000000")] );
+
+
+-- definition for 22-bit address (hex,hex,hex,hex,hex,two bits)
+	STRUCT (t_twentytwo_bit , [ RSTRING (s6, "000000")] );
+
+        STRUCT ( t_p_datapkt , [ RSTRUCT ( t_twentytwo_bit , a ) , 
+				RINT ( op , 0 ) ]);
+
+-- definition for 20-bit address (hex,hex,hex,hex,hex,two bits)
+	STRUCT (t_twenty_bit , [ RSTRING (s5, "00000")] );
+
+-- definition for 18-bit address (2 bits,hex,hex,hex,hex)
+	STRUCT (t_eighteen_bit , [ RSTRING (s5, "00000")] );
+
+-- definition for 16-bit parcel (in hexadecimal format)
+	STRUCT (t_sixteen_bit , [ RSTRING (s4, "0000")] );
+
+        LINK  (i_link , [(DATAPKT , RSTRUCT(t_instrn, DP)),
+			 (INTGR  , RINT ( intgr , 0 ) ), 
+			 ( PLUS , RINT ( inc , 1 ):plus ),
+			 (INSTPKT , RSTRUCT ( t_sixteen_bit , IP ))]);
+
+-- definitions for program memory - used as a means of inputting program statements in Cray format
+	STRUCT (t_cray_parcel, [RINT (f,0),
+						  RINT (g,0),
+						  RINT (h,0),
+						  RINT (i,0),
+						  RINT (j,0),
+						  RINT (k,0)]);
+
+	STRUCT (t_parcel, [RSTRUCT(t_cray_parcel, instrn)]);
+	ARRAY (ProgMem, t_parcel);
+
+-- definition of data memory array - used as a means of inputting program data in (long) integer format
+	ARRAY (DataMem, int);
+
+
+-- definition for 64-bit memory word (in hexadecimal format)
+	STRUCT (t_sixtyfour_bit , [ RSTRING (s16, "0000000000000000")] );
+
+-- definition for package of 4 64-bit memory words
+	STRUCT ( t_four_words , [  RSTRING (address, "00000"),
+				 RSTRUCT ( t_sixtyfour_bit , word0 ),
+				 RSTRUCT ( t_sixtyfour_bit , word1 ),
+				 RSTRUCT ( t_sixtyfour_bit , word2 ),
+				 RSTRUCT ( t_sixtyfour_bit , word3 ) ]);
+
+-- definition for line in memory request buffers
+	STRUCT (t_mem_request, [RCHAR (Type, 'E'),
+						     RINT( reg_no, 0),			-- for V register accesses
+						     RSTRUCT ( t_twenty_bit , address ) ]);
+
+-- definition of instruction buffer (holding 16 memory words)
+	ARRAY (instruction_buffer , t_sixtyfour_bit );
+ 
+-- definition of 4 BARs
+	ARRAY ( four_BARS , t_sixteen_bit );
+
+-- definition of memory (holding a maximum of 256 or 2 to the power 8 words)
+	ARRAY (Memory , t_sixtyfour_bit);
+
+-- definition of vector registers
+	STRUCT (t_v_element, [ RSTRUCT(t_sixtyfour_bit, v_hex), RINT(v_int,0) ]);
+--	STRUCT (t_v_element, [ RSTRUCT(t_sixtyfour_bit, v_hex), RLONG(v_int,0) ]);
+	ARRAY (v_register , t_v_element);
+	
+
+-- definition of scalar registers
+	STRUCT (t_s_reg, [RSTRUCT(t_sixtyfour_bit, s_hex), RINT(s_int,0) ]);
+--	STRUCT (t_s_reg, [RSTRUCT(t_sixtyfour_bit, s_hex), RLONG(s_int,0) ]);
+	ARRAY (s_reg_set , t_s_reg);
+
+	STRUCT (t_t_reg, [RSTRUCT(t_sixtyfour_bit, t_hex), RINT(t_int,0)]);
+--	STRUCT (t_t_reg, [RSTRUCT(t_sixtyfour_bit, t_hex), RLONG(t_int,0)]);
+	ARRAY (t_reg_set , t_t_reg);
+
+-- definition of address registers
+	STRUCT (t_a_reg, [RSTRUCT(t_twentyfour_bit, a_hex), RINT(a_int,0) ]);
+	ARRAY (a_reg_set , t_a_reg);
+
+	STRUCT (t_b_reg, [RSTRUCT(t_twentyfour_bit, b_hex), RINT(b_int,0)]);
+	ARRAY (b_reg_set , t_b_reg);
+
+	STRUCT (t_busy_bits, [RCHAR (busy0, '_'), RCHAR (busy1,  '_'), RCHAR (busy2,   '_'), 
+	RCHAR (busy3,   '_'), RCHAR (busy4,   '_'), RCHAR (busy5,  '_'), RCHAR (busy6,   '_'),
+	RCHAR (busy7,   '_') ] );
+
+	STRUCT (t_reservation_bits, [RCHAR (res0, '_'), RCHAR (res1,  '_'), RCHAR (res2,   '_'), 
+	RCHAR (res3,   '_'), RCHAR (res4,   '_'), RCHAR (res5,  '_'), RCHAR (res6,   '_'), RCHAR (res7,   '_') ] );
+
+-- definition of message-carrying structs
+
+	STRUCT ( a_struct , [ RINT ( reg_no, 0 ), RSTRUCT ( t_twentyfour_bit, a ) ]);
+	STRUCT ( b_struct , [ RINT ( reg_no, 0 ), RSTRUCT ( t_twentyfour_bit, b ) ]);
+	STRUCT ( s_struct , [ RINT ( reg_no, 0 ), RSTRUCT ( t_sixtyfour_bit, s ) ]);
+	STRUCT ( t_struct , [ RINT ( reg_no, 0 ), RSTRUCT ( t_sixtyfour_bit, t ) ]);
+	STRUCT ( v_struct , [ RINT ( i, 0 ), RINT ( element, 0 ), RSTRUCT ( t_sixtyfour_bit, s ) ]);
+
+-- definition of instruction types.
+
+	ENUM ( inst_type, [ SSS,  SA, SI, S0I ]);
+	ENUM ( trans_type, [ AtoB, AtoVL, BtoA, LtoA, LtoP, LtoS, MtoB, BtoM, BtoP,
+			 PtoB, StoA, StoT, TtoS, StoV, VtoS, StoVM, MtoT, TtoM, MtoV, VtoM ]);
+	ENUM ( br_type, [RJ, UB, UL, AZ, ANZ, AP, AN, SZ, SNZ, SP, SN]);
+	STRUCT (br_instrn, [RENUM (br_type, type, 0), RSTRUCT ( t_twentyfour_bit, a ) ]);
+	
+--------------------------------------------------------------------------
+
+	STRUCT (fn_packet, [RSTRING ( op , "+" ), RINT (reg_no, 0)]);
+	STRUCT (sh_fn_packet, [RCHAR ( op , '-' ), RINT (reg_no, 0), RINT (j, 0), RINT(k, 0)]);
+	STRUCT (rs_packet, [RINT (op, 10), RINT (h_reg, 0), RINT (i_reg, 0),
+						RSTRUCT ( t_twentyfour_bit, a ) ]);
+	STRUCT (tr_packet, [RENUM (trans_type, type, 0), RINT(i, 0), RINT(j, 0), RINT(k, 0)]);
+	STRUCT ( tr24_packet, [RENUM (trans_type, type, 0), RINT (i, 0 ), RSTRUCT ( t_twentyfour_bit, a ) ]);
+	STRUCT ( tr64_packet, [RENUM (trans_type, type, 0), RINT (i, 0 ), RSTRUCT ( t_sixtyfour_bit, s ) ]);
+	STRUCT (a_2values, [RSTRUCT (t_twentyfour_bit, op1), RSTRUCT (t_twentyfour_bit, op2)]);
+	STRUCT (s_2values, [RSTRUCT (t_sixtyfour_bit, op1), RSTRUCT (t_sixtyfour_bit, op2)]);
+	STRUCT (m_value, [RINT (VMbit, 0), RSTRUCT (t_sixtyfour_bit, op2)]);
+	STRUCT (m_2values, [RINT (VMbit, 0), RSTRUCT (t_sixtyfour_bit, op1), RSTRUCT (t_sixtyfour_bit, op2)]);
+	STRUCT (reg_test_format, [ RINT (bit_no, 0), RINT (bit_value, 0) ]);
+
+	STRUCT (a_imm_const_format, [ RINT (i, 0), 
+				      RSTRUCT (t_twentyfour_bit, a) ]);
+
+	STRUCT (store_format, [ RINT (i, 0), RINT (jk, 0), 
+				  RINT (j, 0), RINT (k, 0), 
+				  RSTRUCT (t_twenty_bit,  mem_address ) ]);
+	
+	STRUCT (trans_format, [ RENUM (trans_type, type, 0), RINT (i, 0), RINT (j, 0), RINT (k, 0) ]);
+	
+	STRUCT (block_field, [ RINT (reg_no, 0), RINT (blocksize, 1),
+			       RSTRUCT (t_twenty_bit,  mem_address ) ]);
+
+	STRUCT (arith_format, [ RENUM ( inst_type, type, 0 ) , 
+				RINT (reg_no, 0),  RINT (op1, 0),
+			  	  RSTRING ( op , "+ " ), RINT (op2, 0)]);
+
+--------------------------------------------------------------------------
+-- definition of memory access structs
+
+	STRUCT ( t_mem_read, [RSTRUCT ( t_twenty_bit, address ) ]);			-- memory address
+
+	STRUCT ( t_mem_write24, [ RSTRUCT ( t_twenty_bit, address ), 		-- memory address
+						     RSTRUCT ( t_twentyfour_bit, ab ) ]);			-- A or B operand
+
+	STRUCT ( t_mem_write64, [RSTRUCT ( t_twenty_bit, address ),			-- memory address
+							RSTRUCT ( t_sixtyfour_bit, st ) ]);			-- 64-bit operand
+
+	STRUCT (t_read_format, [ RINT (jk, 0), 
+				 RSTRUCT (t_sixtyfour_bit, t) ]);
+
+	INSTR ( mem_instr_set, [
+	                 ( write24, RSTRUCT (t_mem_write24, s24_field)),
+	                 ( write64, RSTRUCT (t_mem_write64, s64_field)),
+	                 ( read, RSTRUCT (t_mem_read, r_field) )],
+		mem_instruction_type);
+
+	STRUCT (mem_pkt, [RINSTR(mem_instr_set, m_inst)]);
+
+	STRUCT (t_mem_ifetch, [RSTRUCT (t_twenty_bit, s)]);
+--------------------------------------------------------------------------
+
+       LINK   (a_link , [ (I_ADDRESS, RSTRUCT(t_twenty_bit, DP)),		-- address link
+			   (A_1VALUE, RSTRUCT(t_twentyfour_bit, DP)),
+		            (A_2VALUES, RSTRUCT(a_2values, DP)),
+			   (ADDRESS , RSTRUCT(t_twentytwo_bit, DP)),
+			   (BR_ADDRESS, RSTRUCT(t_twentyfour_bit, DP)),
+	       		   (A_PKT , RSTRUCT(a_struct, DP)),
+	       		   (RS_PKT , RSTRUCT(rs_packet, DP)),
+	       		   (S_PKT , RSTRUCT(s_struct, DP)),
+	       		   (V_PKT , RSTRUCT(v_struct, DP))]);
+
+	LINK (f_link, [(FN_PKT, RSTRUCT(fn_packet, DP)),				-- function link
+			      (SFN_PKT, RSTRUCT(sh_fn_packet, DP)),
+			      (TR_PKT, RSTRUCT(tr_packet, DP)),
+			      (TR24_PKT, RSTRUCT(tr24_packet, DP)),
+			      (TR64_PKT, RSTRUCT(tr64_packet, DP))]);
+
+        LINK   (o_link , [(M_1VALUE, RSTRUCT(m_value, DP)),			-- operand link
+	       		   (S_1VALUE, RSTRUCT(t_sixtyfour_bit, DP)),
+			   (S_2VALUES, RSTRUCT(s_2values, DP)),
+			   (M_2VALUES, RSTRUCT(m_2values, DP)),
+			    (TEST_RESULT, RINT(test_result, 0))]);
+
+	LINK (m_link , [(B_PKT, RSTRUCT(b_struct, DP)),				-- memory & reg-reg link
+				(DATA24_PKT, RSTRUCT(t_twentyfour_bit, DP)),
+				(DATA64_PKT, RSTRUCT(t_sixtyfour_bit, DP)),
+				(WRITE24_PKT, RSTRUCT(t_mem_write24, DP)),
+				(WRITE64_PKT, RSTRUCT(t_mem_write64, DP)),
+				(READ_PKT, RSTRUCT(t_mem_read, DP)),
+				(S_READ_PKT, RSTRUCT(t_mem_read, DP)),
+				(MEM_PKT, RSTRUCT(mem_pkt, DP))]);
+
+	LINK ( mem_ib_link , [ (FOURWORDS , RSTRUCT ( t_four_words , DP ):Pkt ),
+		  	   (DATAPKT2 , RSTRUCT(t_twenty_bit, DP)) ] );
+	LINK ( p_link, [ (MEM_PKT , RSTRUCT(t_mem_ifetch, DP))]);
+
+	
+   )
+   GLOBALS (
+		RINT (Program, 1);
+		RINT ( clock_period , 2 );
+		RINT ( memory_cycle_time , 11 );
+		RINT ( memory_size , 128 );
+		RINT ( clk , 1);
+		RINT (max_clock_ticks, 48);
+   )
+   ENTITYLIB (
+
+		ABSTRACT Biclocked sync ( )
+		ENTITY Clock sync ( )
+		ENTITY Clockphase sync ( )
+
+	ENTITY programs (
+		EXTENDS (Biclocked)
+		DESCRIPTION ("Program Store")
+		PARAMS ( 
+			RARRAY ( ProgMem , prog_mem, 2048 );
+			RARRAY ( DataMem , data_mem, 1024 );
+		)
+		PORTS (
+			PORT (to_memory, p_link, SOURCE)
+		)
+	);
+	ENTITY memory (
+		EXTENDS (Biclocked)
+		DESCRIPTION ("Cray Memory Unit")
+		PARAMS ( 
+			RARRAY ( Memory , main_mem, 65536 );
+		)
+		PORTS  (
+			PORT (from_programs, p_link, DESTINATION);
+			PORT (to_v_regs, m_link, SOURCE);
+			PORT (to_t_regs, m_link, SOURCE);
+			PORT (to_s_regs, m_link, SOURCE);
+			PORT (to_b_regs, m_link, SOURCE);
+			PORT (to_a_regs, m_link, SOURCE);
+			PORT (to_i_buffers, mem_ib_link, SOURCE);
+			PORT (from_v_regs, a_link, DESTINATION);
+			PORT (from_t_regs, a_link, DESTINATION);
+			PORT (from_s_regs, a_link, DESTINATION);
+			PORT (from_b_regs, a_link, DESTINATION);
+			PORT (from_a_regs, a_link, DESTINATION);
+			PORT (from_i_buffers, a_link, DESTINATION);
+			PORT (from_cip, i_link, DESTINATION);
+		)
+	);
+	ENTITY rtc ( 
+		EXTENDS (Biclocked)
+	      	DESCRIPTION( "real-time clock register")
+       		PARAMS (
+		RSTRING ( rtc_register , "0000000000000000" );
+       		)
+       		PORTS (
+       		)
+    	);
+	ENTITY v_mask ( 
+		EXTENDS (Biclocked)
+	      	DESCRIPTION( "vector mask register")
+		STATES(IDLE, BUSY)
+       		PARAMS (
+		RSTRING ( VM , "0000000000000000" );
+       		)
+       		PORTS (
+			PORT (to_v_regs, o_link, SOURCE);		-- read directly so link just shows connection
+			PORT (to_s_regs, o_link, SOURCE);
+			PORT (from_s_regs, o_link, DESTINATION);
+			PORT (from_v_logic, o_link, DESTINATION);
+			PORT (from_cip, i_link, DESTINATION);
+       		)
+    	);
+
+	ENTITY vector_reg (
+		DESCRIPTION ("Vector Register")
+		STATES (IDLE, BUSY_C, BUSY_R)
+	        PARAMS (RARRAY (v_register, vector_register, 64 );)
+	);
+
+	ENTITY v_registers (
+		EXTENDS (Biclocked)
+		DESCRIPTION ("Vector Registers")
+		STATES (V_REGS_IDLE, V_REGS_BUSY)
+	        PARAMS ( 
+			RINT (VL , 0 );
+			RSTRUCT (t_reservation_bits, Vres_bits)
+		)
+		PORTS  (
+		       	PORT (to_memory, m_link, SOURCE);
+			PORT (to_v_shift, o_link, SOURCE);
+			PORT (to_v_logic, o_link, SOURCE);
+			PORT (to_v_add, o_link, SOURCE);
+			PORT (to_f_recip, o_link, SOURCE);
+			PORT (to_f_mul, o_link, SOURCE);
+			PORT (to_f_add, o_link, SOURCE);
+			PORT (to_s_regs, a_link, SOURCE);
+		       	PORT (from_memory, m_link, DESTINATION);
+			PORT (from_v_mask, o_link, DESTINATION);	-- read directly so link just shows connection
+			PORT (from_v_shift, o_link, DESTINATION);
+			PORT (from_v_logic, o_link, DESTINATION);
+			PORT (from_v_add, o_link, DESTINATION);
+			PORT (from_f_recip, o_link, DESTINATION);
+			PORT (from_f_mul, o_link, DESTINATION);
+			PORT (from_f_add, o_link, DESTINATION);
+			PORT (from_s_regs, a_link, DESTINATION);
+			PORT (from_a_regs, a_link, DESTINATION);
+			PORT (from_cip, a_link, DESTINATION);
+		)
+	);
+	ENTITY t_registers (
+		EXTENDS (Biclocked)
+		DESCRIPTION ("Scalar Backup Registers.")
+		STATES (T_REGS_IDLE, T_REGS_BUSY)
+	        PARAMS (
+			RARRAY (t_reg_set , TRegs, 64 );
+		)
+		PORTS  (
+		       	PORT (to_memory, m_link, SOURCE);
+			PORT (to_s_regs, m_link, SOURCE);
+		       	PORT (from_memory, m_link, DESTINATION);
+		       	PORT (from_a_regs, a_link, DESTINATION);
+		       	PORT (from_s_regs, m_link, DESTINATION);
+			PORT (from_cip, a_link, DESTINATION);
+		)
+	);
+	ENTITY s_registers (
+		EXTENDS (Biclocked)
+		DESCRIPTION ("Scalar Registers.")
+		STATES (S_REGS_IDLE, S_REGS_BUSY)
+	        PARAMS (
+			RARRAY (s_reg_set , SRegs, 8 );
+			RSTRUCT (t_reservation_bits, Sres_bits)
+		)
+		PORTS  (
+		       	PORT (to_memory, m_link, SOURCE);
+			PORT (to_v_regs, a_link, SOURCE);
+			PORT (to_t_regs, a_link, SOURCE);
+			PORT (to_v_mask, o_link, SOURCE);
+			PORT (to_v_logic, o_link, SOURCE);
+			PORT (to_v_add, o_link, SOURCE);
+			PORT (to_f_recip, o_link, SOURCE);
+			PORT (to_f_mul, o_link, SOURCE);
+			PORT (to_f_add, o_link, SOURCE);
+			PORT (to_s_pop, o_link, SOURCE);
+			PORT (to_s_shift, o_link, SOURCE);
+			PORT (to_s_logic, o_link, SOURCE);
+			PORT (to_s_add, o_link, SOURCE);
+			PORT (to_a_regs, o_link, SOURCE);
+
+		       	PORT (from_memory, m_link, DESTINATION);
+			PORT (from_a_regs, o_link, DESTINATION);
+			PORT (from_v_regs, o_link, DESTINATION);
+			PORT (from_v_mask, o_link, DESTINATION);
+			PORT (from_t_regs, m_link, DESTINATION);
+			PORT (from_f_recip, o_link, DESTINATION);
+			PORT (from_f_mul, o_link, DESTINATION);
+			PORT (from_f_add, o_link, DESTINATION);
+			PORT (from_s_shift, o_link, DESTINATION);
+			PORT (from_s_logic, o_link, DESTINATION);
+			PORT (from_s_add, o_link, DESTINATION);
+			PORT (from_cip, a_link, DESTINATION);
+		)
+	);
+	ENTITY b_registers (
+		EXTENDS (Biclocked)
+		DESCRIPTION ("Backup Address Registers.")
+		STATES (B_REGS_IDLE, B_REGS_BUSY)
+	        PARAMS (
+			RARRAY (b_reg_set , BRegs, 64 );
+		)
+		PORTS  (
+		       	PORT (to_memory, m_link, SOURCE);
+			PORT (to_a_regs, m_link, SOURCE);
+			PORT (to_p_reg, a_link, SOURCE);
+		       	PORT (from_memory, m_link, DESTINATION);
+			PORT (from_a_regs, m_link, DESTINATION);
+			PORT (from_p_reg, a_link, DESTINATION);
+			PORT (from_cip, a_link, DESTINATION);
+		)
+	);
+	ENTITY a_registers (
+		EXTENDS (Biclocked)
+		DESCRIPTION ("Address Registers.")
+		STATES (A_REGS_IDLE, A_REGS_BUSY)
+	        PARAMS (
+			RARRAY (a_reg_set , ARegs, 8 );
+			RSTRUCT (t_reservation_bits, Ares_bits)
+		)
+		PORTS  (
+		       	PORT (to_memory, m_link, SOURCE);
+			PORT (to_v_regs, a_link, SOURCE);
+			PORT (to_t_regs, a_link, SOURCE);
+			PORT (to_b_regs, m_link, SOURCE);
+			PORT (to_s_regs, a_link, SOURCE);
+			PORT (to_a_mul, a_link, SOURCE);
+			PORT (to_v_shift, a_link, SOURCE);
+			PORT (to_a_add, a_link, SOURCE);
+		       	PORT (from_memory, m_link, DESTINATION);
+			PORT (from_b_regs, m_link, DESTINATION);
+			PORT (from_s_regs, a_link, DESTINATION);
+			PORT (from_s_pop, a_link, DESTINATION);
+			PORT (from_a_mul, a_link, DESTINATION);
+			PORT (from_a_add, a_link, DESTINATION);
+			PORT (from_cip, a_link, DESTINATION);
+		)
+	);
+
+	ENTITY v_shift_u ( 
+		EXTENDS (Biclocked)
+       		DESCRIPTION( "Vector Shift Unit")
+		STATES (IDLE, BUSY)
+       		PARAMS (
+       		)
+       		PORTS (
+			PORT (from_cip, f_link, DESTINATION);
+			PORT (to_v_regs, o_link, SOURCE);
+			PORT (from_v_regs, o_link, DESTINATION);
+			PORT (from_a_regs, a_link, DESTINATION);
+       		)
+     	);
+	ENTITY v_logic_u ( 
+		EXTENDS (Biclocked)
+       		DESCRIPTION( "Vector Logical Unit")
+		STATES (IDLE, BUSY)
+       		PARAMS (
+       		)
+       		PORTS (
+			PORT (from_cip, f_link, DESTINATION);
+			PORT (to_v_regs, o_link, SOURCE);
+			PORT (to_vm, o_link, SOURCE);
+			PORT (from_s_regs, o_link, SOURCE);
+			PORT (from_v_regs, o_link, DESTINATION);
+       		)
+     	);
+	ENTITY v_add_u ( 
+		EXTENDS (Biclocked)
+       		DESCRIPTION( "Vector Add Unit")
+		STATES (IDLE, BUSY)
+       		PARAMS (
+       		)
+       		PORTS (
+			PORT (from_cip, f_link, DESTINATION);
+			PORT (to_v_regs, o_link, SOURCE);
+			PORT (from_s_regs, o_link, SOURCE);
+			PORT (from_v_regs, o_link, DESTINATION);
+       		)
+     	);
+
+	ENTITY f_recip_u ( 
+		EXTENDS (Biclocked)
+       		DESCRIPTION( "Floating-point Reciprocal Unit")
+		STATES (IDLE, BUSY)
+       		PARAMS (
+       		)
+       		PORTS (
+			PORT (to_v_regs, o_link, SOURCE);
+			PORT (to_s_regs, o_link, SOURCE);
+			PORT (from_v_regs, o_link, DESTINATION);
+			PORT (from_s_regs, o_link, DESTINATION);
+       		)
+     	);
+	ENTITY f_mul_u ( 
+		EXTENDS (Biclocked)
+       		DESCRIPTION( "Floating-point Multiply Unit")
+		STATES (IDLE, BUSY)
+       		PARAMS (
+       		)
+       		PORTS (
+			PORT (from_cip, f_link, DESTINATION);
+			PORT (to_v_regs, o_link, SOURCE);
+			PORT (to_s_regs, o_link, SOURCE);
+			PORT (from_v_regs, o_link, DESTINATION);
+			PORT (from_s_regs, o_link, DESTINATION);
+       		)
+     	);
+	ENTITY f_add_u ( 
+		EXTENDS (Biclocked)
+       		DESCRIPTION( "Floating-point Add Unit")
+		STATES (IDLE, BUSY)
+       		PARAMS (
+       		)
+       		PORTS (
+			PORT (from_cip, f_link, DESTINATION);
+			PORT (to_v_regs, o_link, SOURCE);
+			PORT (to_s_regs, o_link, SOURCE);
+			PORT (from_v_regs, o_link, DESTINATION);
+			PORT (from_s_regs, o_link, DESTINATION);
+       		)
+     	);
+
+	ENTITY s_pop_u ( 
+		EXTENDS (Biclocked)
+       		DESCRIPTION( "Population Count Unit")
+		STATES (IDLE, BUSY)
+       		PARAMS (
+       		)
+       		PORTS (
+			PORT (from_cip, f_link, DESTINATION);
+			PORT (to_a_regs, o_link, SOURCE);
+			PORT (from_s_regs, o_link, DESTINATION);
+       		)
+     	);
+	ENTITY s_shift_u ( 
+		EXTENDS (Biclocked)
+       		DESCRIPTION( "Scalar Shift Unit")
+		STATES (IDLE, BUSY)
+       		PARAMS (
+       		)
+       		PORTS (
+			PORT (from_cip, f_link, DESTINATION);
+			PORT (to_s_regs, o_link, SOURCE);
+			PORT (from_s_regs, o_link, DESTINATION);
+       		)
+     	);
+	ENTITY s_logic_u ( 
+		EXTENDS (Biclocked)
+       		DESCRIPTION( "Scalar Logical Unit")
+		STATES (IDLE, BUSY)
+       		PARAMS (
+       		)
+       		PORTS (
+			PORT (from_cip, f_link, DESTINATION);
+			PORT (to_s_regs, o_link, SOURCE);
+			PORT (from_s_regs, o_link, DESTINATION);
+       		)
+     	);
+	ENTITY s_add_u ( 
+		EXTENDS (Biclocked)
+       		DESCRIPTION( "Scalar Add Unit")
+		STATES (IDLE, BUSY)
+       		PARAMS (
+       		)
+       		PORTS (
+			PORT (from_cip, f_link, DESTINATION);
+			PORT (to_s_regs, o_link, SOURCE);
+			PORT (from_s_regs, o_link, DESTINATION);
+       		)
+     	);
+
+	ENTITY a_mul_u ( 
+		EXTENDS (Biclocked)
+       		DESCRIPTION( "Address Multiply Unit")
+		STATES (IDLE, BUSY)
+       		PARAMS (
+       		)
+       		PORTS (
+			PORT (from_cip, f_link, DESTINATION);
+			PORT (to_a_regs, a_link, SOURCE);
+			PORT (from_a_regs, a_link, DESTINATION);
+       		)
+     	);
+	ENTITY a_add_u ( 
+		EXTENDS (Biclocked)
+       		DESCRIPTION( "Address Add Unit")
+		STATES (IDLE, BUSY)
+       		PARAMS (
+       		)
+       		PORTS (
+			PORT (from_cip, f_link, DESTINATION);
+			PORT (from_a_regs, a_link, DESTINATION);
+			PORT (to_a_regs, a_link, SOURCE);
+       		)
+     	);
+	ENTITY i_buffers (
+		EXTENDS (Biclocked)
+		DESCRIPTION ("Instruction Buffers.")
+	        PARAMS (
+			RSTRING ( status , " idle " );
+			RARRAY ( instruction_buffer, buff0, 16);
+			RARRAY ( instruction_buffer, buff1, 16);
+			RARRAY ( instruction_buffer, buff2, 16);
+			RARRAY ( instruction_buffer, buff3, 16);
+			RARRAY ( four_BARS , BAR, 4 );
+			RINT ( current_buffer , 0 );
+			RINT ( next_buffer , 0 );
+		)
+		PORTS  (
+		       	PORT (to_memory, a_link, SOURCE);
+		       	PORT (to_nip, i_link, SOURCE);
+		       	PORT (to_lip, i_link, SOURCE);
+		       	PORT (from_memory, mem_ib_link, DESTINATION);
+		       	PORT (from_p_reg, a_link, DESTINATION);
+		       	PORT (from_nip, i_link, DESTINATION);
+		)
+	);    
+	ENTITY nip ( 
+		EXTENDS (Biclocked)
+       		DESCRIPTION( "Next Instruction Parcel")
+		STATES (NIP_IDLE, NIP_BUSY)
+       		PARAMS ( 
+			RSTRING (status, "1st");
+			RSTRING ( Instruction , "______" );
+			RSTRUCT ( t_cray1_instrn , inst );
+			
+       		)
+       		PORTS (
+		       	PORT (to_cip, i_link, SOURCE);
+		       	PORT (to_p_reg, i_link, SOURCE);
+			PORT (to_i_buffers, i_link, SOURCE);
+			PORT (from_i_buffers, i_link, DESTINATION);
+       		)
+    	);
+	ENTITY cip ( 
+		EXTENDS (Biclocked)
+       		DESCRIPTION( "Current Instruction Parcel")
+		STATES (CIP_IDLE, CIP_BUSY, CIP_HELD)
+       		PARAMS (
+			RSTRING ( Instruction , "______" );
+			RSTRING (S_entries, "-------------");
+			RSTRING (A_entries, "------");
+       		)
+       		PORTS (
+			PORT (to_v_shift, f_link, SOURCE);
+			PORT (to_v_logic, f_link, SOURCE);
+			PORT (to_v_add, f_link, SOURCE);
+			PORT (to_s_pop, f_link, SOURCE);
+			PORT (to_s_shift, f_link, SOURCE);
+			PORT (to_s_logic, f_link, SOURCE);
+			PORT (to_s_add, f_link, SOURCE);
+			PORT (to_f_mul, f_link, SOURCE);
+			PORT (to_f_add, f_link, SOURCE);
+			PORT (to_a_mul, f_link, SOURCE);
+			PORT (to_a_add, f_link, SOURCE);
+			PORT (to_v_regs, a_link, SOURCE);
+			PORT (to_t_regs, a_link, SOURCE);
+			PORT (to_s_regs, a_link, SOURCE);
+			PORT (to_b_regs, a_link, SOURCE);
+			PORT (to_a_regs, a_link, SOURCE);
+			PORT (to_p_reg, a_link, SOURCE);
+			PORT (to_v_mask, i_link, SOURCE);
+			PORT (to_memory, i_link, SOURCE);
+		       	PORT (from_nip, i_link, DESTINATION);
+      		)
+    	);
+	ENTITY lip ( 
+		EXTENDS (Biclocked)
+       		DESCRIPTION( "Lower Instruction Parcel")
+		STATES (LIP_IDLE, LIP_BUSY)
+       		PARAMS (
+			RSTRUCT ( t_instrn , inst2 );
+			RSTRING ( value , "____" );
+       		)
+       		PORTS (
+			PORT (from_i_buffers, i_link, DESTINATION);
+       		)
+    	);    
+	ENTITY p_register ( 
+		EXTENDS (Biclocked)
+		DESCRIPTION( "Program counter - a 22-bit register")
+		PARAMS (
+			RSTRING ( P , "000000" );
+			RSTRUCT ( t_twentytwo_bit , p_reg );
+		)
+		PORTS (
+			PORT (to_i_buffers, a_link, SOURCE);
+			PORT (to_b_regs, a_link, SOURCE);
+			PORT (from_b_regs, a_link, DESTINATION);
+			PORT (from_cip, a_link, DESTINATION);
+			PORT (from_nip, i_link, DESTINATION);
+		)
+    	);
+
+   )
+   STRUCTURE  (
+
+	AENTITY programs PROGRAMS (
+		DESCRIPTION ("Program Store")
+	);
+	AENTITY Clock CLOCK ( DESCRIPTION ("Clock"));
+	AENTITY Clockphase CPHASE (DESCRIPTION ("Clock display")
+	);
+	AENTITY p_register P_REGISTER (
+		DESCRIPTION ("Program counter")
+	);
+	AENTITY cip CIP (
+		DESCRIPTION ("Current instruction parcel")
+	);
+	AENTITY nip NIP (
+		DESCRIPTION ("Next instruction parcel")
+	);
+	AENTITY lip LIP (
+		DESCRIPTION ("Lower instruction parcel")
+	);
+	AENTITY memory MEMORY (
+		DESCRIPTION ("Memory")
+	);
+    	AENTITY rtc RTC( 
+       		DESCRIPTION( "Real time clock")
+    	);
+    	AENTITY v_mask VECTOR_MASK( 
+       		DESCRIPTION( "Vector Mask Register")
+    	);
+	AENTITY v_registers V_REGISTERS(
+		DESCRIPTION ("Vector registers")
+	);
+	AENTITY vector_reg V_REGISTER_0(
+		DESCRIPTION ("Vector register 0")
+	);
+	AENTITY vector_reg V_REGISTER_1(
+		DESCRIPTION ("Vector register 1")
+	);
+	AENTITY vector_reg V_REGISTER_2(
+		DESCRIPTION ("Vector register 2")
+	);
+	AENTITY vector_reg V_REGISTER_3(
+		DESCRIPTION ("Vector register 3")
+	);
+	AENTITY vector_reg V_REGISTER_4(
+		DESCRIPTION ("Vector register 4")
+	);
+	AENTITY vector_reg V_REGISTER_5(
+		DESCRIPTION ("Vector register 5")
+	);
+	AENTITY vector_reg V_REGISTER_6(
+		DESCRIPTION ("Vector register 6")
+	);
+	AENTITY vector_reg V_REGISTER_7(
+		DESCRIPTION ("Vector register 7")
+	);
+
+	AENTITY v_shift_u V_SHIFT_U(
+		DESCRIPTION ("Vector shift unit")
+	);
+	AENTITY v_logic_u V_LOGIC_U(
+		DESCRIPTION ("Vector logical unit")
+	);
+	AENTITY v_add_u V_ADD_U(
+		DESCRIPTION ("Vector add unit")
+	);
+	AENTITY t_registers T_REGISTERS(
+		DESCRIPTION ("Backup scalar registers")
+	);
+	AENTITY s_registers S_REGISTERS(
+		DESCRIPTION ("Main scalar registers")
+	);
+	AENTITY s_pop_u S_POP_U(
+		DESCRIPTION ("Scalar population count unit")
+	);
+	AENTITY s_shift_u S_SHIFT_U(
+		DESCRIPTION ("Scalar shift unit")
+	);
+	AENTITY s_logic_u S_LOGIC_U(
+		DESCRIPTION ("Scalar logical unit")
+	);
+	AENTITY s_add_u S_ADD_U(
+		DESCRIPTION ("Scalar add unit")
+	);
+	AENTITY f_recip_u F_RECIP_U(
+		DESCRIPTION ("Floating Point reciprocal unit")
+	);
+	AENTITY f_mul_u F_MUL_U(
+		DESCRIPTION ("Floating Point multiply unit")
+	);
+	AENTITY f_add_u F_ADD_U(
+		DESCRIPTION ("Floating Point add unit")
+	);
+	AENTITY b_registers B_REGISTERS(
+		DESCRIPTION ("Backup scalar registers")
+	);
+	AENTITY a_registers A_REGISTERS(
+		DESCRIPTION ("Main scalar registers")
+	);
+	AENTITY a_mul_u A_MUL_U(
+		DESCRIPTION ("Address multiply unit")
+	);
+	AENTITY a_add_u A_ADD_U(
+		DESCRIPTION ("Address add unit")
+	);
+	AENTITY i_buffers I_BUFFERS(
+		DESCRIPTION ("Instruction buffers")
+	);
+
+	CLINK (programs.PROGRAMS[to_memory]->memory.MEMORY[from_programs],1);
+
+	CLINK (memory.MEMORY[to_v_regs]->v_registers.V_REGISTERS[from_memory],1);
+	CLINK (memory.MEMORY[to_t_regs]->t_registers.T_REGISTERS[from_memory],1);
+	CLINK (memory.MEMORY[to_s_regs]->s_registers.S_REGISTERS[from_memory],1);
+	CLINK (memory.MEMORY[to_b_regs]->b_registers.B_REGISTERS[from_memory],1);
+	CLINK (memory.MEMORY[to_a_regs]->a_registers.A_REGISTERS[from_memory],1);
+	CLINK (memory.MEMORY[to_i_buffers]->i_buffers.I_BUFFERS[from_memory],1);
+
+	CLINK (v_registers.V_REGISTERS[to_memory]->memory.MEMORY[from_v_regs],1);
+	CLINK (t_registers.T_REGISTERS[to_memory]->memory.MEMORY[from_t_regs],1);
+	CLINK (s_registers.S_REGISTERS[to_memory]->memory.MEMORY[from_s_regs],1);
+	CLINK (b_registers.B_REGISTERS[to_memory]->memory.MEMORY[from_b_regs],1);
+	CLINK (a_registers.A_REGISTERS[to_memory]->memory.MEMORY[from_a_regs],1);
+	CLINK (i_buffers.I_BUFFERS[to_memory]->memory.MEMORY[from_i_buffers],1);
+
+	CLINK (v_mask.VECTOR_MASK[to_v_regs]->v_registers.V_REGISTERS[from_v_mask],1);
+	CLINK (v_mask.VECTOR_MASK[to_s_regs]->s_registers.S_REGISTERS[from_v_mask],1);
+
+	CLINK (v_registers.V_REGISTERS[to_v_shift]->v_shift_u.V_SHIFT_U[from_v_regs],1);
+	CLINK (v_registers.V_REGISTERS[to_v_logic]->v_logic_u.V_LOGIC_U[from_v_regs],1);
+	CLINK (v_registers.V_REGISTERS[to_v_add]->v_add_u.V_ADD_U[from_v_regs],1);
+	CLINK (v_registers.V_REGISTERS[to_f_recip]->f_recip_u.F_RECIP_U[from_v_regs],1);
+	CLINK (v_registers.V_REGISTERS[to_f_mul]->f_mul_u.F_MUL_U[from_v_regs],1);
+	CLINK (v_registers.V_REGISTERS[to_f_add]->f_add_u.F_ADD_U[from_v_regs],1);
+	CLINK (v_registers.V_REGISTERS[to_s_regs]->s_registers.S_REGISTERS[from_v_regs],1);
+
+	CLINK (t_registers.T_REGISTERS[to_s_regs]->s_registers.S_REGISTERS[from_t_regs],1);
+	CLINK (s_registers.S_REGISTERS[to_v_regs]->v_registers.V_REGISTERS[from_s_regs],1);
+	CLINK (s_registers.S_REGISTERS[to_t_regs]->t_registers.T_REGISTERS[from_s_regs],1);
+	CLINK (s_registers.S_REGISTERS[to_v_mask]->v_mask.VECTOR_MASK[from_s_regs],1);
+	CLINK (s_registers.S_REGISTERS[to_v_logic]->v_log_u.V_LOGIC_U[from_s_regs],1);
+	CLINK (s_registers.S_REGISTERS[to_v_add]->v_add_u.V_ADD_U[from_s_regs],1);
+	CLINK (s_registers.S_REGISTERS[to_f_recip]->f_recip_u.F_RECIP_U[from_s_regs],1);
+	CLINK (s_registers.S_REGISTERS[to_f_mul]->f_mul_u.F_MUL_U[from_s_regs],1);
+	CLINK (s_registers.S_REGISTERS[to_f_add]->f_add_u.F_ADD_U[from_s_regs],1);
+
+	CLINK (s_registers.S_REGISTERS[to_s_pop]->s_pop_u.S_POP_U[from_s_regs],1);
+	CLINK (s_registers.S_REGISTERS[to_s_shift]->s_shift_u.S_SHIFT_U[from_s_regs],1);
+	CLINK (s_registers.S_REGISTERS[to_s_logic]->s_logic_u.S_LOGIC_U[from_s_regs],1);
+	CLINK (s_registers.S_REGISTERS[to_s_add]->s_add_u.S_ADD_U[from_s_regs],1);
+	CLINK (s_registers.S_REGISTERS[to_a_regs]->a_registers.A_REGISTERS[from_s_regs],1);
+
+	CLINK (b_registers.B_REGISTERS[to_a_regs]->a_registers.A_REGISTERS[from_b_regs],1);
+	CLINK (b_registers.B_REGISTERS[to_p_reg]->p_register.P_REGISTER[from_b_regs],1);
+	CLINK (a_registers.A_REGISTERS[to_v_shift]->v_shift_u.V_SHIFT_U[from_a_regs],1);
+	CLINK (a_registers.A_REGISTERS[to_v_regs]->v_registers.V_REGISTERS[from_a_regs],1);
+	CLINK (a_registers.A_REGISTERS[to_s_regs]->s_registers.S_REGISTERS[from_a_regs],1);
+	CLINK (a_registers.A_REGISTERS[to_t_regs]->t_registers.T_REGISTERS[from_a_regs],1);
+	CLINK (a_registers.A_REGISTERS[to_b_regs]->b_registers.B_REGISTERS[from_a_regs],1);
+	CLINK (a_registers.A_REGISTERS[to_a_mul]->a_mul_u.A_MUL_U[from_a_regs],1);
+	CLINK (a_registers.A_REGISTERS[to_a_add]->a_add_u.A_ADD_U[from_a_regs],1);
+
+	CLINK (p_register.P_REGISTER[to_b_regs]->b_register.B_REGISTERS[from_p_reg],1);
+	CLINK (p_register.P_REGISTER[to_i_buffers]->i_buffers.I_BUFFERS[from_p_reg],1);
+
+	CLINK (v_shift_u.V_SHIFT_U[to_v_regs]->v_registers.V_REGISTERS[from_v_shift],1);
+	CLINK (v_logic_u.V_LOGIC_U[to_v_regs]->v_registers.V_REGISTERS[from_v_logic],1);
+	CLINK (v_logic_u.V_LOGIC_U[to_vm]->v_mask.VECTOR_MASK[from_v_logic],0);
+	CLINK (v_add_u.V_ADD_U[to_v_regs]->v_registers.V_REGISTERS[from_v_add],1);
+
+	CLINK (f_recip_u.F_RECIP_U[to_v_regs]->v_registers.V_REGISTERS[from_f_recip],1);
+	CLINK (f_recip_u.F_RECIP_U[to_s_regs]->s_registers.S_REGISTERS[from_f_recip],1);
+	CLINK (f_mul_u.F_MUL_U[to_v_regs]->v_registers.V_REGISTERS[from_f_mul],1);
+	CLINK (f_mul_u.F_MUL_U[to_s_regs]->s_registers.S_REGISTERS[from_f_mul],1);
+	CLINK (f_add_u.F_ADD_U[to_v_regs]->v_registers.V_REGISTERS[from_f_add],1);
+	CLINK (f_add_u.F_ADD_U[to_s_regs]->s_registers.S_REGISTERS[from_f_add],1);
+
+	CLINK (s_pop_u.S_POP_U[to_a_regs]->a_registers.A_REGISTERS[from_s_pop],1);
+	CLINK (s_shift_u.S_SHIFT_U[to_s_regs]->s_registers.S_REGISTERS[from_s_shift],1);
+	CLINK (s_logic_u.S_LOGIC_U[to_s_regs]->s_registers.S_REGISTERS[from_s_logic],1);
+	CLINK (s_add_u.S_ADD_U[to_s_regs]->s_registers.S_REGISTERS[from_s_add],1);
+
+	CLINK (a_mul_u.A_MUL_U[to_a_regs]->a_registers.A_REGISTERS[from_a_mul],1);
+	CLINK (a_add_u.A_ADD_U[to_a_regs]->a_registers.A_REGISTERS[from_a_add],1);
+
+	CLINK (i_buffers.I_BUFFERS[to_nip]->nip.NIP[from_i_buffers],1);
+	CLINK (nip.NIP[to_i_buffers]->i_buffers.I_BUFFERS[from_nip], 0);
+	CLINK (i_buffers.I_BUFFERS[to_lip]->lip.LIP[from_i_buffers],1);
+	CLINK (nip.NIP[to_cip]->cip.CIP[from_nip],1);
+
+	CLINK (cip.CIP[to_v_shift]->v_shift_u.V_SHIFT_U[from_cip],1);
+	CLINK (cip.CIP[to_v_logic]->v_logic_u.V_LOGIC_U[from_cip],1);
+	CLINK (cip.CIP[to_v_add]->v_add_u.V_ADD_U[from_cip],1);
+	CLINK (cip.CIP[to_s_pop]->s_pop_u.S_POP_U[from_cip],1);
+	CLINK (cip.CIP[to_s_shift]->s_shift_u.S_SHIFT_U[from_cip],1);
+	CLINK (cip.CIP[to_s_logic]->s_logic_u.S_LOGIC_U[from_cip],1);
+	CLINK (cip.CIP[to_s_add]->s_add_u.S_ADD_U[from_cip],1);
+	CLINK (cip.CIP[to_f_mul]->f_mul_u.F_MUL_U[from_cip],1);
+	CLINK (cip.CIP[to_f_add]->f_add_u.F_ADD_U[from_cip],1);
+	CLINK (cip.CIP[to_a_mul]->a_mul_u.A_MUL_U[from_cip],1);
+	CLINK (cip.CIP[to_a_add]->a_add_u.A_ADD_U[from_cip],1);
+
+	CLINK (cip.CIP[to_v_regs]->v_regs.V_REGISTERS[from_cip], 1);
+	CLINK (cip.CIP[to_t_regs]->t_regs.T_REGISTERS[from_cip], 0);
+	CLINK (cip.CIP[to_s_regs]->s_regs.S_REGISTERS[from_cip], 1);
+	CLINK (cip.CIP[to_b_regs]->b_regs.B_REGISTERS[from_cip], 0);
+	CLINK (cip.CIP[to_a_regs]->a_regs.A_REGISTERS[from_cip], 1);
+
+	CLINK (cip.CIP[to_p_reg]->p_register.P_REGISTER[from_cip], 1);
+--	CLINK (p_register.P_REGISTER[from_cip]->cip.CIP[to_p_reg],1);
+	CLINK (p_register.P_REGISTER[from_nip]->nip.NIP[to_p_reg],0);
+
+
+	CLINK (cip.CIP[to_v_mask]->v_mask.VECTOR_MASK[from_cip], 0);
+	CLINK (cip.CIP[to_memory]->memory.MEMORY[from_cip], 0);
+   )
+
+)

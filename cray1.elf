@@ -1,0 +1,342 @@
+title : position (430,540)
+CLOCK : position (600,490)
+CPHASE : position (600,490)
+CPHASE : STATES S:ClockS P0:ClockP0 P1:ClockP1
+CPHASE : PARAM cycle MODE VALUE POSITION (70,35)
+
+PROGRAMS : position (1,165)
+PROGRAMS : port to_memory side RIGHT position 70 
+
+MEMORY : position (50,5)
+MEMORY : port from_programs side LEFT position 230 ICON portr
+MEMORY : port to_v_regs side RIGHT position 25 ICON portl
+MEMORY : port to_t_regs side RIGHT position 195 ICON portl
+MEMORY : port to_s_regs side RIGHT position 240 ICON portl
+MEMORY : port to_b_regs side RIGHT position 320 ICON portl
+MEMORY : port to_a_regs side RIGHT position 365 ICON portl
+MEMORY : port to_i_buffers side RIGHT position 505 ICON portl
+MEMORY : port from_v_regs side RIGHT position 25 ICON portl
+MEMORY : port from_t_regs side RIGHT position 195 ICON portl
+MEMORY : port from_s_regs side RIGHT position 240 ICON portl
+MEMORY : port from_b_regs side RIGHT position 320 ICON portl
+MEMORY : port from_a_regs side RIGHT position 365 ICON portl
+MEMORY : port from_i_buffers side RIGHT position 505 ICON portl
+MEMORY : port from_cip side RIGHT position 0 ICON portblank
+
+VECTOR_MASK : position (160,50)
+VECTOR_MASK :STATES IDLE:v_mask BUSY:v_mask_busy
+VECTOR_MASK : PARAM VM mode VALUE POSITION (7,8)
+VECTOR_MASK : port to_v_regs side RIGHT position 20 ICON portl
+VECTOR_MASK : port to_s_regs side RIGHT position 20 ICON portl
+VECTOR_MASK : port from_s_regs side RIGHT position 20 ICON portl
+VECTOR_MASK : port from_v_logic side RIGHT position 0 ICON portblank
+VECTOR_MASK : port from_cip side RIGHT position 0 ICON portblank
+
+RTC : position (160, 105)
+RTC : PARAM rtc_register mode VALUE POSITION (7,8)
+
+v_numbers : position (355,36)
+V_REGISTERS : position (350,5)
+V_REGISTERS : STATES V_REGS_IDLE:v_regs V_REGS_BUSY:v_regs_busy
+V_REGISTERS : PARAM Vres_bits mode VALUE POSITION (16,51)
+V_REGISTERS : PARAM VL mode VALUE POSITION (75, 12)
+V_REGISTERS : port to_memory side LEFT position 25 ICON portr
+V_REGISTERS : port to_v_shift side RIGHT position 25 ICON portl
+V_REGISTERS : port to_v_logic side RIGHT position 25 ICON portl
+V_REGISTERS : port to_v_add side RIGHT position 25 ICON portl
+V_REGISTERS : port to_f_recip side RIGHT position 105 ICON portl
+V_REGISTERS : port to_f_mul side RIGHT position 105 ICON portl
+V_REGISTERS : port to_f_add side RIGHT position 105 ICON portl
+V_REGISTERS : port to_s_regs side RIGHT position 125 ICON portl
+V_REGISTERS : port from_memory side LEFT position 25 ICON portr
+V_REGISTERS : port from_v_mask side LEFT position 65 ICON portr
+V_REGISTERS : port from_v_shift side RIGHT position 25 ICON portl
+V_REGISTERS : port from_v_logic side RIGHT position 25 ICON portl
+V_REGISTERS : port from_v_add side RIGHT position 25 ICON portl
+V_REGISTERS : port from_f_recip side RIGHT position 105 ICON portl
+V_REGISTERS : port from_f_mul side RIGHT position 105 ICON portl
+V_REGISTERS : port from_f_add side RIGHT position 105 ICON portl
+V_REGISTERS : port from_s_regs side RIGHT position 125 ICON portl
+V_REGISTERS : port from_a_regs side RIGHT position 125 ICON portl
+V_REGISTERS : port from_cip side RIGHT position 90 ICON portl
+
+V_REGISTER_0 : position (355,56)
+V_REGISTER_0 : STATES IDLE:v_reg_i BUSY_C:v_reg_c BUSY_R:v_reg_r
+V_REGISTER_1 : position (366,56)
+V_REGISTER_1 : STATES IDLE:v_reg_i BUSY_C:v_reg_c BUSY_R:v_reg_r
+V_REGISTER_2 : position (377,56)
+V_REGISTER_2 : STATES IDLE:v_reg_i BUSY_C:v_reg_c BUSY_R:v_reg_r
+V_REGISTER_3 : position (388,56)
+V_REGISTER_3 : STATES IDLE:v_reg_i BUSY_C:v_reg_c BUSY_R:v_reg_r
+V_REGISTER_4 : position (399,56)
+V_REGISTER_4 : STATES IDLE:v_reg_i BUSY_C:v_reg_c BUSY_R:v_reg_r
+V_REGISTER_5 : position (410,56)
+V_REGISTER_5 : STATES IDLE:v_reg_i BUSY_C:v_reg_c BUSY_R:v_reg_r
+V_REGISTER_6 : position (421,56)
+V_REGISTER_6 : STATES IDLE:v_reg_i BUSY_C:v_reg_c BUSY_R:v_reg_r
+V_REGISTER_7 : position (432,56)
+V_REGISTER_7 : STATES IDLE:v_reg_i BUSY_C:v_reg_c BUSY_R:v_reg_r
+
+T_REGISTERS : position (200,170)
+T_REGISTERS : STATES T_REGS_IDLE:t_regs T_REGS_BUSY:t_regs_busy
+T_REGISTERS : port to_memory side LEFT position 30 ICON portr
+T_REGISTERS : port to_s_regs side RIGHT position 20 ICON portl
+T_REGISTERS : port from_memory side LEFT position 30 ICON portr
+T_REGISTERS : port from_s_regs side RIGHT position 20 ICON portl
+T_REGISTERS : port from_a_regs side RIGHT position 50 ICON portl
+T_REGISTERS : port from_cip side LEFT position 0 ICON portblank
+
+S_REGISTERS : position (350,170)
+S_REGISTERS : STATES S_REGS_IDLE:s_regs S_REGS_BUSY:s_regs_busy
+S_REGISTERS : PARAM Sres_bits mode VALUE POSITION (16,25)
+S_REGISTERS : port to_memory side LEFT position 75 ICON portr
+S_REGISTERS : port to_v_mask side LEFT position 20 ICON portr
+S_REGISTERS : port to_v_regs side RIGHT position 60 ICON portl
+S_REGISTERS : port to_t_regs side LEFT position 20 ICON portr
+S_REGISTERS : port to_v_logic side RIGHT position 20 ICON portl
+S_REGISTERS : port to_v_add side RIGHT position 20 ICON portl
+S_REGISTERS : port to_f_recip side RIGHT position 20 ICON portl
+S_REGISTERS : port to_f_mul side RIGHT position 20 ICON portl
+S_REGISTERS : port to_f_add side RIGHT position 20 ICON portl
+S_REGISTERS : port to_s_pop side RIGHT position 80 ICON portl
+S_REGISTERS : port to_s_shift side RIGHT position 80 ICON portl
+S_REGISTERS : port to_s_logic side RIGHT position 80 ICON portl
+S_REGISTERS : port to_s_add side RIGHT position 80 ICON portl
+S_REGISTERS : port to_a_regs side RIGHT position 60 ICON portl
+
+S_REGISTERS : port from_memory side LEFT position 75 ICON portr
+S_REGISTERS : port from_v_mask side LEFT position 20 ICON portr
+S_REGISTERS : port from_v_regs side RIGHT position 60 ICON portl
+S_REGISTERS : port from_a_regs side RIGHT position 60 ICON portl
+S_REGISTERS : port from_t_regs side LEFT position 20 ICON portr
+S_REGISTERS : port from_f_recip side RIGHT position 20 ICON portl
+S_REGISTERS : port from_f_mul side RIGHT position 20 ICON portl
+S_REGISTERS : port from_f_add side RIGHT position 20 ICON portl
+S_REGISTERS : port from_s_shift side RIGHT position 80 ICON portl
+S_REGISTERS : port from_s_logic side RIGHT position 80 ICON portl
+S_REGISTERS : port from_s_add side RIGHT position 80 ICON portl
+S_REGISTERS : port from_cip side RIGHT position 40 ICON portl
+
+B_REGISTERS : position (200,295)
+B_REGISTERS : STATES B_REGS_IDLE:b_regs B_REGS_BUSY:b_regs_busy
+B_REGISTERS : port to_memory side LEFT position 30 ICON portr
+B_REGISTERS : port to_a_regs side RIGHT position 20 ICON portl
+B_REGISTERS : port to_p_reg side BOTTOM position 45 ICON portd
+B_REGISTERS : port from_memory side LEFT position 30 ICON portr
+B_REGISTERS : port from_a_regs side RIGHT position 20 ICON portl
+B_REGISTERS : port from_p_reg side BOTTOM position 45 ICON portd
+B_REGISTERS : port from_cip side LEFT position 0 ICON portblank
+
+A_REGISTERS : position (350,295)
+A_REGISTERS : STATES A_REGS_IDLE:a_regs A_REGS_BUSY:a_regs_busy
+A_REGISTERS : PARAM Ares_bits mode VALUE POSITION (16,25)
+A_REGISTERS : port to_memory side LEFT position 75 ICON portr
+A_REGISTERS : port to_v_regs side RIGHT position 20 ICON portl
+A_REGISTERS : port to_t_regs side LEFT position 20 ICON portr
+A_REGISTERS : port to_b_regs side LEFT position 20 ICON portr
+A_REGISTERS : port to_s_regs side RIGHT position 20 ICON portl
+A_REGISTERS : port to_v_shift side RIGHT position 20 ICON portl
+A_REGISTERS : port to_a_mul side RIGHT position 85 ICON portl
+A_REGISTERS : port to_a_add side RIGHT position 85 ICON portl
+A_REGISTERS : port from_memory side LEFT position 75 ICON portr
+A_REGISTERS : port from_s_regs side RIGHT position 20 ICON portl
+A_REGISTERS : port from_b_regs side LEFT position 20 ICON portr
+A_REGISTERS : port from_s_pop side RIGHT position 65 ICON portl
+A_REGISTERS : port from_a_mul side RIGHT position 85  ICON portl
+A_REGISTERS : port from_a_add side RIGHT position 85 ICON portl
+A_REGISTERS : port from_cip side RIGHT position 40 ICON portl
+
+v_units : position (540,3)
+
+V_SHIFT_U : position (550,25)
+V_SHIFT_U :STATES IDLE:shift BUSY:shift_busy
+V_SHIFT_U : port from_cip side RIGHT position 10 icon portl
+V_SHIFT_U : port to_v_regs side LEFT position 5 ICON portr
+V_SHIFT_U : port from_v_regs side LEFT position 5 ICON portr
+V_SHIFT_U : port from_a_regs side LEFT position 15 ICON portr
+
+V_LOGIC_U : position (550,45)
+V_LOGIC_U :STATES IDLE:logic BUSY:logic_busy
+V_LOGIC_U : port from_cip side RIGHT position 10 icon portl
+V_LOGIC_U : port to_v_regs side LEFT position 5 ICON portr
+V_LOGIC_U : port to_vm side LEFT position 0 ICON portblank
+V_LOGIC_U : port from_v_regs side LEFT position 5 ICON portr
+V_LOGIC_U : port from_s_regs side LEFT position 15 ICON portr
+
+V_ADD_U : position (550,65)
+V_ADD_U :STATES IDLE:add BUSY:add_busy
+V_ADD_U : port from_cip side RIGHT position 10 icon portl
+V_ADD_U : port to_v_regs side LEFT position 5 ICON portr
+V_ADD_U : port from_v_regs side LEFT position 5 ICON portr
+V_ADD_U : port from_s_regs side LEFT position 15 ICON portr
+
+f_units : position (525,103)
+
+F_RECIP_U : position (550,125)
+F_RECIP_U :STATES IDLE:recip BUSY:recip_busy
+F_RECIP_U : port from_v_regs side LEFT position 5 ICON portr
+F_RECIP_U : port to_v_regs side LEFT position 5 ICON portr
+F_RECIP_U : port from_s_regs side LEFT position 15 ICON portr
+F_RECIP_U : port to_s_regs side LEFT position 15 ICON portr
+
+F_MUL_U : position (550,145)
+F_MUL_U :STATES IDLE:mul BUSY:mul_busy
+F_MUL_U : port from_cip side RIGHT position 10 icon portl
+F_MUL_U : port from_v_regs side LEFT position 5 ICON portr
+F_MUL_U : port to_v_regs side LEFT position 5 ICON portr
+F_MUL_U : port from_s_regs side LEFT position 15 ICON portr
+F_MUL_U : port to_s_regs side LEFT position 15 ICON portr
+
+F_ADD_U : position (550,165)
+F_ADD_U :STATES IDLE:add BUSY:add_busy
+F_ADD_U : port from_cip side RIGHT position 10 icon portl
+F_ADD_U : port from_v_regs side LEFT position 5 ICON portr
+F_ADD_U : port to_v_regs side LEFT position 5 ICON portr
+F_ADD_U : port from_s_regs side LEFT position 15 ICON portr
+F_ADD_U : port to_s_regs side LEFT position 15 ICON portr
+
+s_units : position (540,208)
+
+S_POP_U : position (550,230)
+S_POP_U : port from_cip side RIGHT position 10 icon portl
+S_POP_U :STATES IDLE:popcount BUSY:popcount_busy
+S_POP_U : port to_a_regs side LEFT position 20 ICON portr
+S_POP_U : port from_s_regs side LEFT position 20 ICON portr
+
+S_SHIFT_U : position (550,250)
+S_SHIFT_U : port from_cip side RIGHT position 10 icon portl
+S_SHIFT_U :STATES IDLE:shift BUSY:shift_busy
+S_SHIFT_U : port to_s_regs side LEFT position 0 ICON portr
+S_SHIFT_U : port from_s_regs side LEFT position 0 ICON portr
+
+S_LOGIC_U : position (550,270)
+S_LOGIC_U : port from_cip side RIGHT position 10 icon portl
+S_LOGIC_U :STATES IDLE:logic BUSY:logic_busy
+S_LOGIC_U : port to_s_regs side LEFT position -20 ICON portr
+S_LOGIC_U : port from_s_regs side LEFT position -20 ICON portr
+
+S_ADD_U : position (550,290)
+S_ADD_U :STATES IDLE:add BUSY:add_busy
+S_ADD_U : port from_cip side RIGHT position 10 icon portl
+S_ADD_U : port to_s_regs side LEFT position -40 ICON portr
+S_ADD_U : port from_s_regs side LEFT position -40 ICON portr
+
+a_units : position (540,338)
+
+A_MUL_U : position (550,360)
+A_MUL_U : STATES IDLE:mul BUSY:mul_busy
+A_MUL_U : port from_cip side RIGHT position 10 icon portl
+A_MUL_U : port to_a_regs side LEFT position 20 ICON portr
+A_MUL_U : port from_a_regs side LEFT position 20 ICON portr
+
+A_ADD_U : position (550,380)
+A_ADD_U :STATES IDLE:add BUSY:add_busy
+A_ADD_U : port from_cip side RIGHT position 10 icon portl
+A_ADD_U : port to_a_regs side LEFT position 0 ICON portr
+A_ADD_U : port from_a_regs side LEFT position 0 ICON portr
+
+i_buffs : position (280,520)
+
+I_BUFFERS : position (180,460)
+I_BUFFERS : PARAM status mode VALUE POSITION (12,60)
+I_BUFFERS : port from_memory side LEFT position 50 ICON portr
+I_BUFFERS : port to_memory side LEFT position 50 ICON portr
+I_BUFFERS : port from_p_reg side TOP position 65 ICON portd
+I_BUFFERS : port to_nip side RIGHT position 29 
+I_BUFFERS : port from_nip side RIGHT position 29 ICON portblank
+I_BUFFERS : port to_lip side RIGHT position 29
+
+NIP : position (410,440)
+NIP : STATES NIP_IDLE:nip NIP_BUSY:nip_busy
+NIP : PARAM Instruction mode VALUE POSITION (42,5)
+NIP : port to_cip side RIGHT position 10
+NIP : port from_i_buffers side LEFT position 10 ICON portr
+NIP : port to_i_buffers side LEFT position 10 ICON portblank
+NIP : port to_p_reg side TOP position 45 ICON portblank
+
+LIP : position (410,480)
+LIP : STATES LIP_IDLE:lip LIP_BUSY:lip_busy
+LIP : PARAM value mode VALUE POSITION (50,5)
+LIP : port from_i_buffers side LEFT position 10 ICON portr
+
+CIP : position (550,415)
+CIP : STATES CIP_IDLE:cip CIP_BUSY:cip_busy CIP_HELD:cip_held
+CIP : PARAM Instruction mode VALUE POSITION (42,5)
+CIP : port to_v_shift side RIGHT position 10 
+CIP : port to_v_logic side RIGHT position 10 
+CIP : port to_v_add side RIGHT position 10 
+CIP : port to_s_pop side RIGHT position 10 
+CIP : port to_s_shift side RIGHT position 10 
+CIP : port to_s_logic side RIGHT position 10 
+CIP : port to_s_add side RIGHT position 10 
+CIP : port to_f_mul side RIGHT position 10 
+CIP : port to_f_add side RIGHT position 10 
+CIP : port to_a_mul side RIGHT position 10 
+CIP : port to_a_add side RIGHT position 10 
+CIP : port to_v_regs side RIGHT position 10 
+CIP : port to_t_regs side LEFT position 0 ICON portblank
+CIP : port to_s_regs side RIGHT position 10 
+CIP : port to_b_regs side LEFT position 0 ICON portblank
+CIP : port to_a_regs side RIGHT position 10 
+CIP : port to_p_reg side LEFT position 5
+CIP : port from_nip side BOTTOM position 20 ICON portu
+CIP : port to_v_mask side LEFT position 0 ICON portblank
+CIP : port to_memory side LEFT position 0 ICON portblank
+
+P_REGISTER : position (200, 390)
+P_REGISTER : PARAM P mode VALUE POSITION (25,7)
+P_REGISTER : port to_i_buffers side BOTTOM position 45
+P_REGISTER : port from_cip side RIGHT position 30 ICON portl
+P_REGISTER : port from_nip side BOTTOM position 40 ICON portblank
+P_REGISTER : port to_b_regs side TOP position 45 ICON portblank
+P_REGISTER : port from_b_regs side TOP position 45 ICON portd
+
+TOPLEVEL : LINKCORNER NIP to_cip CIP from_nip 1 (54,0)
+TOPLEVEL : LINKCORNER I_BUFFERS to_nip NIP from_i_buffers 2 (110,0) (110,-39)
+
+TOPLEVEL : LINKCORNER VECTOR_MASK to_s_regs S_REGISTERS from_v_mask  2 (15,0) (15, 120 )
+TOPLEVEL : LINKCORNER V_REGISTERS to_v_logic V_LOGIC_U from_v_regs 2 (65,0) (65,20)
+TOPLEVEL : LINKCORNER V_REGISTERS to_v_add V_ADD_U from_v_regs 2 (65,0) (65,40)
+TOPLEVEL : LINKCORNER V_REGISTERS to_f_recip F_RECIP_U from_v_regs 2 (65,0) (65, 20 )
+TOPLEVEL : LINKCORNER V_REGISTERS to_f_mul F_MUL_U from_v_regs 2 (65,0) (65, 40 )
+TOPLEVEL : LINKCORNER V_REGISTERS to_f_add F_ADD_U from_v_regs 2 (65,0) (65, 60 )
+TOPLEVEL : LINKCORNER V_REGISTERS to_s_regs S_REGISTERS from_v_regs 2 (30,0) (30,100 )
+
+TOPLEVEL : LINKCORNER S_REGISTERS to_v_mask VECTOR_MASK from_s_regs 2 (-25,0) (-25,-120 )
+TOPLEVEL : LINKCORNER S_REGISTERS to_v_regs V_REGISTERS from_s_regs 2 (30,0) (30,-100 )
+TOPLEVEL : LINKCORNER S_REGISTERS to_a_regs A_REGISTERS to_s_regs 2 (30,0) (30,85 )
+TOPLEVEL : LINKCORNER S_REGISTERS to_v_logic V_LOGIC_U from_s_regs 2 (50,0) (50,-130)
+TOPLEVEL : LINKCORNER S_REGISTERS to_v_add V_ADD_U from_s_regs 2 (50,0) (50,-110)
+TOPLEVEL : LINKCORNER S_REGISTERS to_f_recip F_RECIP_U from_s_regs 2 (50,0) (50,-50)
+TOPLEVEL : LINKCORNER S_REGISTERS to_f_mul F_MUL_U from_s_regs 2 (50,0) (50,-30)
+TOPLEVEL : LINKCORNER S_REGISTERS to_f_add F_ADD_U from_s_regs 2 (50,0) (50,-10)
+
+TOPLEVEL : LINKCORNER A_REGISTERS to_v_regs V_REGISTERS from_a_regs 2 (30,0) (30,-185) 
+TOPLEVEL : LINKCORNER A_REGISTERS to_s_regs S_REGISTERS from_a_regs 2 (30,0) (30,-85) 
+TOPLEVEL : LINKCORNER A_REGISTERS to_t_regs T_REGISTERS from_a_regs 2 (-15,0) (-15,-95) 
+TOPLEVEL : LINKCORNER A_REGISTERS to_v_shift V_SHIFT_U from_a_regs 2 (30,0) (30,-275) 
+TOPLEVEL : LINKCORNER V_LOGIC_U to_v_regs V_REGISTERS from_v_logic 2 (-25,0) (-25,-20)
+TOPLEVEL : LINKCORNER V_ADD_U to_v_regs V_REGISTERS from_v_add 2 (-25,0) (-25,-40)
+TOPLEVEL : LINKCORNER F_RECIP_U to_v_regs V_REGISTERS from_f_recip 2 (-25,0) (-25, -20 )
+TOPLEVEL : LINKCORNER F_RECIP_U to_s_regs S_REGISTERS from_f_recip 2 (-40,0) (-40, 50 )
+TOPLEVEL : LINKCORNER F_MUL_U to_v_regs V_REGISTERS from_f_mul 2 (-25,0) (-25, -40 )
+TOPLEVEL : LINKCORNER F_MUL_U to_s_regs S_REGISTERS from_f_mul 2 (-40,0) (-40, 30 )
+TOPLEVEL : LINKCORNER F_ADD_U to_v_regs V_REGISTERS from_f_add 2 (-25,0) (-25, -60 )
+TOPLEVEL : LINKCORNER F_ADD_U to_s_regs S_REGISTERS from_f_add 2 (-40,0) (-40, 10 )
+
+TOPLEVEL : LINKCORNER S_POP_U to_a_regs A_REGISTERS from_s_pop 2 (-25,0) (-25, 110 )
+
+TOPLEVEL : LINKCORNER CIP to_a_regs A_REGISTERS from_cip 2 (10,0) (10,-90)
+TOPLEVEL : LINKCORNER CIP to_s_regs S_REGISTERS from_cip 2 (15,0) (15,-215)
+TOPLEVEL : LINKCORNER CIP to_v_shift  V_SHIFT_U from_cip 2 (25,0) (25,-390)
+TOPLEVEL : LINKCORNER CIP to_v_logic  V_LOGIC_U from_cip 2 (25,0) (25,-370)
+TOPLEVEL : LINKCORNER CIP to_v_add  V_ADD_U from_cip 2 (25,0) (25,-350)
+TOPLEVEL : LINKCORNER CIP to_v_regs  V_REGISTERS from_cip 2 (25,0) (25,-330)
+TOPLEVEL : LINKCORNER CIP to_f_add  F_ADD_U from_cip 2 (20,0) (20,-250)
+TOPLEVEL : LINKCORNER CIP to_f_mul  F_MUL_U from_cip 2 (20,0) (20,-270)
+TOPLEVEL : LINKCORNER CIP to_s_pop  S_POP_U from_cip 2 (15,0) (15,-185)
+TOPLEVEL : LINKCORNER CIP to_s_shift  S_SHIFT_U from_cip 2 (15,0) (15,-165)
+TOPLEVEL : LINKCORNER CIP to_s_logic  S_LOGIC_U from_cip 2 (15,0) (15,-145)
+TOPLEVEL : LINKCORNER CIP to_s_add  S_ADD_U from_cip 2 (15,0) (15,-125)
+TOPLEVEL : LINKCORNER CIP to_a_mul  A_MUL_U from_cip 2 (10,0) (10,-55)
+TOPLEVEL : LINKCORNER CIP to_a_add  A_ADD_U from_cip 2 (10,0) (10,-35)

@@ -1,0 +1,117 @@
+// Project	Cray 1
+// Entity	PROGRAMS
+// File	programs.hase
+// Date	Nov 2017		modified Jan 2023
+
+/*
+In V2 of the Cray-1 model, the PROGRAMS entity contains all 3 of the programs in V1.1, V1.2 and V1.3.
+Its Program parameter selects the base address in the PROGRAMS .mem files  from which the code
+and data are copied into the arrays in MEMORY.
+*/
+
+$class_decls
+
+// Variable Declarations
+
+ memory * myMemory;
+
+ bool coding_error, P_error;
+ int base;						// base address of code and data .mem files
+ int i;							// memory address of 64-bit word
+ int j;							// parcel address (4 in each word)
+ int k;						// character address (4 in each parcel)
+ int error_line;
+ int temp, mem_address;
+ long data;
+ t_parcel o_parcel;				// instruction parcel in octal format (f g h i j k)
+ t_sixteen_bit h_parcel;			// instruction parcel in hex format
+ t_sixtyfour_bit mem_word;
+
+$class_defs
+
+$pre
+
+ myMemory = (memory*)sim.get_entity(sim.get_entity_id("MEMORY"));
+  coding_error = false;
+  P_error = false;
+
+ mem_address = 0;
+
+ if ( (Program <1) || (Program > 4) )
+  {P_error = true;}
+
+ switch (Program)
+   {
+    case 1:
+      base = 0;		// instructions 0-511 in PROGRAMS.prog_mem.mem
+      break;
+
+    case 2:
+      base = 512;	// instructions 512-1023 in PROGRAMS.prog_mem.mem
+      break;
+
+    case 3:
+      base = 1024;	// instructions 1024-1535 in PROGRAMS.prog_mem.mem
+      break;
+
+    case 4:
+      base = 1536;	// instructions 1536-2047 in PROGRAMS.prog_mem.mem;
+      break;
+   }
+
+ for (i=0; i<128; i++)
+  {
+   for (j=0; j<4; j++)
+    {
+      o_parcel = prog_mem[base + 4*i+j];
+
+      if ( (o_parcel.instrn.k > 7) || (o_parcel.instrn.j > 7) || (o_parcel.instrn.i > 7)
+	      || (o_parcel.instrn.h > 7) || (o_parcel.instrn.g > 7) || (o_parcel.instrn.f > 7)
+	      || (o_parcel.instrn.k < 0) || (o_parcel.instrn.j < 0) || (o_parcel.instrn.i < 0)
+	      || (o_parcel.instrn.h < 0) || (o_parcel.instrn.g < 0) || (o_parcel.instrn.f < 0)
+	  )
+       {
+         if (!coding_error)
+         {
+	coding_error = true;
+	error_line = base + 4*i+j;
+          }
+       }
+      temp = (o_parcel.instrn.k & 7) | ((o_parcel.instrn.j & 7) << 3) | ((o_parcel.instrn.i & 7) << 6)
+	      | ((o_parcel.instrn.h & 7) << 9)  | ((o_parcel.instrn.g & 7) << 12) | ((o_parcel.instrn.f & 7) << 15);
+
+      for (k=3; k>=0; k--)
+       {
+         mem_word.s16[4*j+ k] = hex_to_char(temp & 15);
+         temp = temp >> 4;
+       }
+    }
+      myMemory->main_mem.Update(i, mem_word);
+  }
+
+for (i = 0; i<256; i++)
+ { 
+   data = data_mem[ i];
+
+  for (j=15; j>=0; j--)
+   {
+    mem_word.s16[j] = hex_to_char(data & 15);
+    data = data >>4;
+   }
+       myMemory->main_mem.Update((i+256), mem_word);
+ } 
+
+$phase0
+
+ if (P_error || coding_error)
+  {stopSimulation();}
+
+$phase1
+
+$report
+
+ if (coding_error)
+  {printf("coding error on line %d: instruction fields must be in the range 0-7 \n", error_line);}
+
+if (P_error)
+  {printf(" Program number must be 1, 2, 3 or 4\n");} 

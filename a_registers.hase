@@ -1,0 +1,437 @@
+// Project	Cray 1
+// Entity	A Registers
+// File	a_registers.hase
+// Date	Oct 2017
+//
+// GLOBALS for this entity are as follows:
+//		RARRAY (a_reg , registers );
+//  registers - array holding 8 24-bit addresses in hex and integer format
+
+$class_decls
+
+ b_registers * myBregs;
+ t_registers * myTregs;
+
+ int nonzero(int i); 				// returns 0 if Ai=0, 1 otherwise
+ int negative(int i);  				// returns 0 if Ai>=0, 1 otherwise
+
+// Variable Declarations
+
+ bool send_to_Bregs, send_to_Sregs,  send_to_Tregs, read_Memory, write_to_Mem;
+ bool block_load, block_store;
+
+ int old_state;
+ int Aregs_Busy;
+ int reserved[8];
+ int reg1, reg2;
+ int i, j, reg_no, m_reg_no, overflow, sign_bit, test_result;
+ int blocksize, index;
+
+ a_struct add_result;
+
+void set_reservation(int i);
+void unset_reservation(int i);
+void transmit1_B (int i);
+void transmit2_B (int i);
+void transmit2_T (int i);
+void transmit1_V (int i);
+void transmit2_V (int i);
+void send_to_Vshift (int k);
+void send_to_Aadd (int i, int j, int k);
+void send_to_Amul (int i, int j, int k);
+
+int lower7bits(int i);
+//void lower20bits(int i, char* ans);
+t_twenty_bit lower20bits(int i);
+
+t_a_reg reg_value;
+t_twenty_bit mem_address, address20;
+t_twentyfour_bit address24, mem_value;
+t_twentyfour_bit one, zero, value;
+rs_packet rs_pkt;
+tr24_packet tr24_pkt;
+
+arith_format alu_inst;
+a_struct immconst_inst;
+store_format store_inst;
+a_2values values_packet;
+b_struct b_pkt;
+a_struct f_pkt;
+s_struct s_pkt;
+
+mem_instr_set mem_inst;
+ t_mem_read mem_read_pkt;
+ t_mem_write24 mem_write_pkt;
+mem_pkt m_pkt;
+
+$class_defs
+/*
+int a_registers::nonzero(int i)
+{
+//   for (j = 0; j<6; j++)
+//   {
+	if (ARegs[i].a_int > 0)
+//      if ( ARegs[i].s6[j] !='0') 
+	{return 1;}
+   }
+   return 0;
+}
+
+
+int a_registers::negative(int i)
+{
+  if (ARegs[i].a_int < 0)
+   {
+     sign_bit = (ARegs[i].a_int >> 23) & 1;
+//   sign_bit = char_to_hex(ARegs[i].s6[0]) >> 3;
+   return sign_bit;
+}
+*/
+void a_registers::set_reservation(int i)
+{
+   reg_value = ARegs[i];
+   reserved[i] = 1;
+   ARegs.Update(i, reg_value);
+   Aregs_Busy ++;
+   switch (i)
+   {
+    case 0: Ares_bits.res0 = 'R'; break;
+    case 1: Ares_bits.res1 = 'R'; break;
+    case 2: Ares_bits.res2 = 'R'; break;
+    case 3: Ares_bits.res3 = 'R'; break;
+    case 4: Ares_bits.res4 = 'R'; break;
+    case 5: Ares_bits.res5 = 'R'; break;
+    case 6: Ares_bits.res6 = 'R'; break;
+    case 7: Ares_bits.res7 = 'R'; break;
+   }
+   dump_state();
+}
+
+void a_registers::unset_reservation(int i)
+{
+   reserved[i] = 0;
+   Aregs_Busy --;
+   switch (i)
+   {
+    case 0: Ares_bits.res0 = '_';  break;
+    case 1: Ares_bits.res1 = '_'; break;
+    case 2: Ares_bits.res2 = '_'; break;
+    case 3: Ares_bits.res3 = '_'; break;
+    case 4: Ares_bits.res4 = '_'; break;
+    case 5: Ares_bits.res5 = '_'; break;
+    case 6: Ares_bits.res6 = '_'; break;
+    case 7: Ares_bits.res7 = '_'; break;
+  }
+   dump_state();
+}
+
+void a_registers::transmit1_V(int k)
+{
+	value = ARegs[k].a_hex;						//  A[k]
+	send_A_1VALUE (to_v_regs, value);
+//printf("Aregs sending value packet to Vregs \n");
+}
+
+void a_registers::transmit1_B(int i)
+{
+	value = ARegs[i].a_hex;						//  A[i]
+	send_A_1VALUE (to_b_regs, value);
+//printf("Aregs sending value packet to Bregs \n");
+}
+
+void a_registers::transmit2_B(int i)
+{
+	values_packet.op1 = ARegs[i].a_hex;			// no. of words from A[i]
+	values_packet.op2 = ARegs[0].a_hex;			// memory start address from A[0]
+	send_A_2VALUES (to_b_regs, values_packet);
+//printf("Aregs sending values packet to Bregs \n");
+}
+
+void a_registers::transmit2_T(int i)
+{
+	values_packet.op1 = ARegs[i].a_hex;			// no. of words from A[i]
+	values_packet.op2 = ARegs[0].a_hex;			// memory start address from A[0]
+	send_A_2VALUES (to_t_regs, values_packet);
+//printf("Aregs sending values packet to Tregs \n");
+}
+
+void a_registers::transmit2_V(int i)
+{
+	values_packet.op1 = ARegs[0].a_hex;			// memory start address from A[0]
+	values_packet.op2 = ARegs[i].a_hex;			// address increment
+	send_A_2VALUES (to_v_regs, values_packet);
+//printf("Aregs sending values packet to Vregs \n");
+}
+
+void a_registers::send_to_Vshift(int k)
+{
+        if (k == 0)							//	if k = 0, (Ak) = 1
+	   {value = one;}
+	else
+	 {value = ARegs[k].a_hex;}
+	send_A_1VALUE (to_v_shift, value);
+}
+
+void a_registers::send_to_Aadd(int i, int j, int k)
+{
+        if (j == 0)							//	if j = 0, (Aj) = 0
+	   {values_packet.op1 = zero;}
+	else
+  		   values_packet.op1 = ARegs[j].a_hex;
+        if (k == 0)							//	if k = 0, (Ak) = 1
+	   {values_packet.op2 = one;}
+	else
+	   {values_packet.op2 = ARegs[k].a_hex;}
+	send_A_2VALUES( to_a_add, values_packet);
+//printf("Aregs sending packet to A_ADD_U \n");
+}
+
+void a_registers::send_to_Amul(int i, int j, int k)
+{
+		        if (j == 0)							//	if j = 0, (A0) = 0
+			   {values_packet.op1 = zero;}
+			else
+	   		   values_packet.op1 = ARegs[j].a_hex;
+		        if (k == 0)							//	if k = 0, (A0) = 1
+			   {values_packet.op2 = one;}
+			else
+	   		   {values_packet.op2 = ARegs[k].a_hex;}
+	send_A_2VALUES( to_a_mul, values_packet);
+//printf("Aregs sending packet to A_MUL_U \n");
+}
+
+
+/*
+int a_registers::lower7bits(int i)
+{
+   int ans = 0;
+   ans = char_to_hex( ARegs[i].s6[5] ) + 
+	 (char_to_hex( ARegs[i].s6[4] ) %4)*16;
+   return ans;
+}
+
+t_twent_bit a_registers::lower20bits(i)
+{
+			address20.s5[0] = '0';
+			for (j=1; j<5; j++)
+			 {address20.s5[j] = ARegs[i].a_hex.s6[j+1];}
+	return address20.s5;
+//   for (int j=0; j<5; j++)
+//   	{ans[j] = ARegs[i].a_hex.s6[j+1];}
+   //ans[5]= '\0';
+//printf( "a_registers: lower20bits = %s   ", ans);
+}
+
+*/
+
+$pre
+
+myBregs = (b_registers*)sim.get_entity(sim.get_entity_id("B_REGISTERS"));
+myTregs = (t_registers*)sim.get_entity(sim.get_entity_id("T_REGISTERS"));
+
+// V_regs = sim.get_entity_id("V_REGISTERS");
+// Memory = sim.get_entity_id("MEMORY");
+// Cip = sim.get_entity_id("I_ISSUE.CIP");
+
+ block_load = false;
+ block_store = false;
+ send_to_Bregs = false;
+ send_to_Sregs = false;
+ send_to_Tregs = false;
+ read_Memory = false;
+ write_to_Mem = false;
+
+strcpy(mem_address.s5, "00000");
+strcpy(zero.s6, "000000");
+strcpy(one.s6, "000001");
+//printf("A_REGS: value of one = %s \n", one.s6);
+
+// reset reservation bits and reset register values to 0
+
+ for (i=0; i<8; i++)
+   {reserved[i] = 0;}
+ strcpy(reg_value.a_hex.s6, "000000");
+ reg_value.a_int = 0;
+ for (reg_no=0; reg_no<8; reg_no++)
+  {ARegs.Update( reg_no, reg_value);}
+
+ Aregs_Busy = 0;
+ my_state = A_REGS_IDLE;
+ old_state = A_REGS_IDLE;
+ dump_state();
+
+$phase0
+
+// predicates for use in sim_waiting tests
+
+ sim_from_port from_CIP (from_cip);
+ sim_from_port from_Memory (from_memory);
+ sim_from_port from_Bregs (from_b_regs);
+ sim_from_port from_Sregs (from_s_regs);
+ sim_from_port from_S_POP (from_s_pop);
+ sim_from_port from_A_MUL (from_a_mul);
+ sim_from_port from_A_ADD (from_a_add);
+
+
+ if (sim_waiting(ev, from_CIP))
+   {
+     if (ev.type() == TR24_PKT)									// 
+      {
+       SIM_CAST (tr24_packet, tr24_pkt, ev);
+       if (tr24_pkt.type == LtoA)
+        {
+	 reg_no = tr24_pkt.i;
+	 reg_value.a_hex = tr24_pkt.a;
+	 reg_value.a_int = string_to_int(tr24_pkt.a.s6, 6);
+	 ARegs.Update( reg_no, reg_value);
+	 unset_reservation(reg_no);
+        }
+     }
+     else  if (ev.type() == RS_PKT)									// 10h, 11h, 12h, 13h
+      {
+	SIM_CAST (rs_packet, rs_pkt, ev); 
+									// According to the Cray 1 Hardware Reference Manual:
+									// "The address arithmetic [for 10/11/12/13 instructions] is
+									// performed by an address adder similar to but separate
+									// from the address add unit."
+	if (rs_pkt.op == 10)							// Read from ((Ah) + jkm) to Ai 
+	 {
+	  overflow = 0;
+	  for (i=4; i>=0; i--)
+	   {mem_address.s5[i] = add_hex_digits( ARegs[rs_pkt.h_reg].a_hex.s6[i+1], rs_pkt.a.s6[i+1], overflow);}
+	  mem_read_pkt.address = mem_address;
+	  m_reg_no = rs_pkt.i_reg;
+	  read_Memory = true;
+          }
+ 
+	if (rs_pkt.op == 11)							// Store (Ai) to (Ah) + jkm  
+	 {
+	  overflow = 0;
+	  for (i=4; i>=0; i--)
+	   {mem_address.s5[i] = add_hex_digits( ARegs[rs_pkt.h_reg].a_hex.s6[i+1], rs_pkt.a.s6[i+1], overflow);}
+	  mem_write_pkt.address = mem_address;
+	  mem_write_pkt.ab = ARegs[rs_pkt.i_reg].a_hex;
+	  write_to_Mem = true;
+          }
+ 
+	if  (rs_pkt.op == 12)							// Read from ((Ah + jkm) to Si 
+	 {
+	  overflow = 0;
+	  for (i=4; i>=0; i--)
+	   {mem_address.s5[i] = add_hex_digits( ARegs[rs_pkt.h_reg].a_hex.s6[i+1], rs_pkt.a.s6[i+1], overflow);}
+	  mem_read_pkt.address = mem_address;
+//	  m_reg_no = rs_pkt.i_reg;		- destination register is an S register so don't need m_reg_no here
+	  read_Memory = true;
+          }
+	if (rs_pkt.op == 13)							// Store (Si) to (Ah) + jkm  
+	 {
+	  overflow = 0;
+	  for (i=4; i>=0; i--)
+	   {mem_address.s5[i] = add_hex_digits( ARegs[rs_pkt.h_reg].a_hex.s6[i+1], rs_pkt.a.s6[i+1], overflow);}
+	  for (i=4; i>0; i--)
+	   {rs_pkt.a.s6[i+1] = mem_address.s5[i];}
+	  send_to_Sregs = true;
+          }
+ 
+     }
+   }
+
+    if (sim_waiting(ev, from_Memory))
+   {
+    SIM_CAST(t_twentyfour_bit, mem_value, ev);
+    reg_no = m_reg_no;
+    reg_value.a_hex = mem_value;
+//		 printf("A_REGS getting value %s from Memory \n", reg_value.a_hex.s6);
+    reg_value.a_int = string_to_int(mem_value.s6, 6);
+    ARegs.Update( reg_no, reg_value);
+    unset_reservation(reg_no);
+   }
+
+  if (sim_waiting(ev, from_Bregs))
+   {
+    SIM_CAST(a_struct, add_result , ev);
+    reg_no = add_result.reg_no;
+    reg_value.a_hex = add_result.a;
+//		 printf("A_REGS getting value %s from Bregs unit \n", reg_value.a_hex.s6);
+    reg_value.a_int = string_to_int(add_result.a.s6, 6);
+    ARegs.Update( reg_no, reg_value);
+    unset_reservation(reg_no);
+   }
+
+   if (sim_waiting(ev, from_Sregs))
+   {
+    SIM_CAST(a_struct, add_result , ev);
+    reg_no = add_result.reg_no;
+    reg_value.a_hex = add_result.a;
+//		 printf("A_REGS getting result %s from Sregs unit \n", reg_value.a_hex.s6);
+    reg_value.a_int = string_to_int(add_result.a.s6, 6);
+    ARegs.Update( reg_no, reg_value);
+    unset_reservation(reg_no);
+   }
+
+
+   if (sim_waiting(ev, from_S_POP))
+   {
+    SIM_CAST(a_struct, add_result , ev);
+    reg_no = add_result.reg_no;
+    reg_value.a_hex = add_result.a;
+//		 printf("A_REGS getting result for register %d %s from Spop unit \n", reg_no, reg_value.a_hex.s6);
+    reg_value.a_int = string_to_int(add_result.a.s6, 6);
+    ARegs.Update( reg_no, reg_value);
+   unset_reservation(reg_no);
+   }
+
+   if (sim_waiting(ev, from_A_ADD))
+   {
+    SIM_CAST(a_struct, add_result , ev);
+    reg_no = add_result.reg_no;
+    reg_value.a_hex = add_result.a;
+    reg_value.a_int = string_to_int(add_result.a.s6, 6);
+//	 printf("A_REGS getting result %s  (= %d) for register %d from Aadd unit \n", reg_value.a_hex.s6,  reg_value.a_int, reg_no);
+    ARegs.Update( reg_no, reg_value);
+   unset_reservation(reg_no);
+   }
+
+   if (sim_waiting(ev, from_A_MUL))
+   {
+    SIM_CAST(a_struct, add_result , ev);
+    reg_no = add_result.reg_no;
+    reg_value.a_hex = add_result.a;
+//		 printf("A_REGS getting result for register %d %s from Amul unit \n", reg_no, reg_value.a_hex.s6);
+    reg_value.a_int = string_to_int(add_result.a.s6, 6);
+    ARegs.Update( reg_no, reg_value);
+    unset_reservation(reg_no);
+   }
+
+ //	f("A_registers: Aregs_Busy = %d \n", Aregs_Busy);
+ if (Aregs_Busy > 0)
+  {my_state = A_REGS_BUSY;}
+ else
+  {my_state = A_REGS_IDLE;}
+ if (my_state != old_state)
+  {dump_state();
+   old_state = my_state;}
+
+$phase1
+
+if (send_to_Sregs)
+ {
+   send_RS_PKT (to_s_regs,  rs_pkt);
+   send_to_Sregs = false;
+  }
+
+if (read_Memory)
+  {
+    if (rs_pkt.op == 10)
+     {send_READ_PKT(to_memory, mem_read_pkt);}
+    if (rs_pkt.op == 12)
+     {send_S_READ_PKT(to_memory, mem_read_pkt);}
+   read_Memory = false;
+  }
+ 
+ if (write_to_Mem)
+  {
+//printf("A_registers: sending write packet to Memory, reg_no = %d, address = %s , value = %s \n", reg_no, mem_write_pkt.address.s5, mem_write_pkt.ab.s6);
+   send_WRITE24_PKT(to_memory, mem_write_pkt);
+   write_to_Mem = false;
+  }

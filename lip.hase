@@ -1,0 +1,54 @@
+// Project	Cray 1
+// Entity	LIP
+//File		lip.hase
+// Date	Oct 2017
+
+// Globals:
+//		RSTRUCT ( i_format , inst2 );
+//		RSTRING ( value , "----" );
+
+$class_decls
+
+// Variable Declarations
+
+ bool parcel_taken;
+ int i;
+ t_sixteen_bit inst_parcel;
+
+$class_defs
+
+$pre
+
+ parcel_taken = false;
+ for (int i =0; i<4; i++)
+   {value[i]='-';}
+   my_state = LIP_IDLE;
+  dump_state();
+
+$phase0
+
+// predicate for use in sim_waiting test
+
+sim_from_port from_IB(from_i_buffers);
+
+ if (sim_waiting(ev, from_IB))	// Receive instruction parcel from instruction buffer.
+  {
+    SIM_CAST(t_sixteen_bit, inst_parcel, ev);
+//	printf("LIP: getting instruction parcel = %s from IBuffers \n", inst_parcel.s4);
+    my_state = LIP_BUSY;
+     for ( i =0; i<4; i++)
+	{value[i]=inst_parcel.s4[i];}
+     dump_state_i();
+}
+
+$phase1
+
+ if (parcel_taken)
+  {
+   my_state = LIP_IDLE;
+    for (int i =0; i<4; i++)
+    {value[i]='-';}
+   parcel_taken = false;
+   dump_state();
+  }
+

@@ -1,0 +1,245 @@
+// Project	Cray 1
+// Entity	Next Instruction Parcel
+// File	nip.hase
+// Date	Sep 2017
+//
+// Globals:
+//  	t_cray1_instrn inst;
+//	string status
+
+$class_decls
+
+// entity references
+
+p_register * myP_reg;
+cip * myCIP;
+
+// Variable Declarations
+
+
+ bool two_parcel, get_parcel2, instr_ready, increment_P, send_blank, cip_ready, nip_ready;
+ bool invalidate;
+
+ int old_state;
+ int Ack;
+
+// Message containers
+ t_sixteen_bit instruction_parcel;
+ t_instrn instrn;
+ t_cray1_instrn blank_inst;
+
+
+int g, empty_pipeline;
+
+void increment_p_by(int i);
+void display_instruction();
+void clear_pipe();
+//void cip_ready_for_next();
+//void forward_blank();
+//void forward_inst();
+
+$class_defs
+
+void nip::display_instruction()
+{
+   if (inst.g > 7)
+    {Instruction[0] = '1';}
+   else
+    {Instruction[0] = '0';}
+   g = inst.g & 7;
+   Instruction[1] = hex_to_char(g);
+   Instruction[2] = hex_to_char(inst.h);
+   Instruction[3] = hex_to_char(inst.i);
+   Instruction[4] = hex_to_char(inst.j);
+   Instruction[5] = hex_to_char(inst.k);
+}
+
+void nip::clear_pipe()
+{
+  invalidate = true;
+   for (int i = 0; i<6; i++)
+       {Instruction[i]= '_';}
+}
+
+/*
+void nip::increment_p_by(int i)
+{
+   if (i>0)
+     {send_PLUS(to_p_register, i);}
+   else
+     {sim_schedule(P_Reg, 0.0, 0, SIM_PUT(int,i));}
+   // printf("nip: Incremented P by %d \n", i);
+}
+*/
+
+$pre
+
+myP_reg = (p_register*)sim.get_entity(sim.get_entity_id("P_REGISTER")); 
+myCIP = (cip*)sim.get_entity(sim.get_entity_id("CIP"));
+
+ instr_ready = false;
+ two_parcel = false;
+ get_parcel2 = false;
+ increment_P = false;
+ send_blank = false;
+ cip_ready = true;
+ nip_ready = true;
+ invalidate = false;
+ empty_pipeline=1;
+
+
+ status[0]='1';
+ status[1]='s';
+ status[2]='t';
+
+ blank_inst.g = 0;
+ blank_inst.h = 0;
+ blank_inst.i = 0;
+ blank_inst.j = 0;
+ blank_inst.k = 0;
+
+ my_state = NIP_IDLE;
+ old_state = NIP_IDLE;
+ dump_state();
+
+$phase0
+
+// predicate for use in sim_waiting test
+
+ sim_from_port from_IB(from_i_buffers);
+// sim_from_port from_CIP(from_cip);
+
+ cip_ready = myCIP->cip_ready;
+ my_state = NIP_IDLE;
+//     clear_instruction();
+
+// Receive instruction parcel from instruction buffer.
+
+
+ if (sim_waiting(ev, from_IB))
+  {
+    SIM_CAST(t_sixteen_bit, instruction_parcel, ev);
+			 printf("NIP: getting instruction from IB, status = %c \n", status[0]);
+//     if (status[0]=='1') // a real instruction, not a blank
+//	myP_reg->increment_p();
+   my_state = NIP_BUSY;
+   if (two_parcel)
+    {
+	instrn.parcels = 2;
+	instr_ready = true;
+//	myP_reg->increment_p();
+	increment_P = true;
+			// printf("NIP: setting instr_ready  for 2-parcel instruction \n");
+	two_parcel = false;
+    }
+
+   else
+     {
+	//Translate the instruction into general instruction format.
+     	inst.g = char_to_hex(instruction_parcel.s4[0]);
+     	inst.h = char_to_hex(instruction_parcel.s4[1]) / 2;
+     	inst.i = (char_to_hex(instruction_parcel.s4[1]) %2)*4 
+		+ char_to_hex(instruction_parcel.s4[2]) /4;
+     	inst.j = (char_to_hex(instruction_parcel.s4[2]) %4)*2 
+		+ char_to_hex(instruction_parcel.s4[3]) /8;
+     	inst.k = char_to_hex(instruction_parcel.s4[3]) %8;
+ 
+//	printf(" nip: instruction parcel %s translates to %d %d %d %d %d \n",	instruction_parcel.s4, inst.g, inst.h, inst.i, inst.j, inst.k);
+	display_instruction();
+//       }
+
+//	if (empty_pipeline)
+//	{
+//	   empty_pipeline = 0;
+//	   increment_p_by(1); 
+//	}
+
+		// Check to see if it is the first half of a 2-parcel instruction. If it is, send '2-parcel' message to 
+ 		// instruction buffer in phase 1 to ensure that the 2nd half is loaded into lip
+     	if ( (inst.g==8) || (inst.g==9) || (inst.g==10) || (inst.g==11)
+	   || (((inst.g==2)||(inst.g==4))&& ((inst.h==0)||(inst.h==1)))
+	   || ((inst.g==0)&&(inst.h>=5)) || (inst.g==1))
+     	{
+	   status[0]='2';
+	   status[1]='n';
+	   status[2]='d';
+	   two_parcel = true;
+	   send_blank = true;
+//	myP_reg->increment_p();
+	increment_P = true;
+	   printf( " nip: First half of a 2-parcel instruction \n");
+	}
+       else
+         {
+//	 instrn.instrn = inst;
+	  instrn.parcels = 1;
+	instr_ready = true;
+// printf("NIP: setting instr_ready  for 1-parcel instruction \n");
+//	myP_reg->increment_p();
+  	increment_P = true;
+       }
+    }
+ nip_ready = false;
+
+  }		// end of packet from IB
+   if (my_state != old_state)
+    {dump_state();
+     old_state = my_state;}
+
+$phase1
+
+	// wait for 5 then check that CIP is ready
+	//  forward instruction parcel when nip and cip are  ready.
+ if (invalidate)
+  {
+   instr_ready = false;
+   send_blank = true;
+	increment_P = false;
+   invalidate = false;
+   nip_ready = true;
+  }
+
+ if (increment_P)
+  {
+   myP_reg->increment_p();
+   increment_P = false;
+  }
+ sim_hold(5);
+ cip_ready = myCIP->cip_ready;
+
+ if (instr_ready && cip_ready)
+  {
+   instrn.instrn = inst;
+   send_DATAPKT(to_cip, instrn);
+printf("NIP: sending instruction to CIP \n");
+   nip_ready = true;
+   instr_ready = false;
+   cip_ready = false;
+ }
+
+ if (send_blank && myCIP->cip_ready)
+  {
+   instrn.instrn = blank_inst;
+   instrn.parcels = 0;
+   send_DATAPKT(to_cip, instrn);
+printf("NIP: sending blank instruction to CIP \n");
+   send_blank = false;
+   nip_ready = true;
+   cip_ready = false;
+  }
+
+/*
+    else  //the 2nd part of a 2-parcel instruction (a blank)
+    {
+
+       	inst = blank_inst;
+	display_instruction();
+
+	status[0]='1';
+	status[1]='s';
+	status[2]='t';
+
+        cip_ready_for_next();
+	forward_blank();
+    }
+*/

@@ -1,0 +1,380 @@
+// Project	Cray 1
+// Entity	Memory
+// File	memory.hase
+//Date	Sep 2017
+//
+// 	RARRAY ( Memory , main_mem );
+//
+// Receives an event from the control unit, 
+// telling it to: 	1. load data into registers.
+// 			2. store data from registers to memory.
+// Receives an event from the instruction buffers, 
+// telling it to:  load data into buffers, at a rate of 4 words
+//                 (1 block) per clock.
+
+$class_decls
+
+// structures and variables
+
+t_registers * myTregs;
+
+ int cycle;
+
+ bool set_Tregs_idle;
+ bool mem_busy_i;
+ bool send_to_a, send_to_b, send_to_s, send_to_t, send_to_v, send_to_i;
+
+ int i, i_block;
+ int reg_no,  words, index;
+
+int instruction;
+
+int any_req;
+
+t_mem_read read_request;
+t_mem_request MemReqBuff[4];
+t_twenty_bit i_word_address, address, m_address;
+t_twentyfour_bit data24_pkt;
+t_sixtyfour_bit mem_word, address_line, mem_value;
+t_sixtyfour_bit data64_pkt;
+t_four_words pkt_for_ibuffer;
+
+int mem_index;
+int mem_block; // used when transferring blocks to inst. buffer
+
+mem_pkt m_pkt;
+b_struct b_pkt;
+v_struct v_pkt;
+t_mem_write24 pkt_from_ABregs;
+t_mem_write64 pkt_from_STregs;
+
+int line;
+int a_count[4], s_count[4];
+a_struct a_waiting[4]; 
+s_struct s_waiting[4];
+
+
+void inst_buffer_event(sim_event &ev );
+void create_i_mem_address();
+void read_instructions();
+void determine_mem_index(t_twenty_bit m_address);
+
+
+$class_defs
+
+
+void memory::determine_mem_index(t_twenty_bit m_address)
+{
+   mem_index =  (char_to_hex(m_address.s5[4]));
+   mem_index += (char_to_hex(m_address.s5[3]))*16;
+   mem_index += (char_to_hex(m_address.s5[2]))*16*16;
+   mem_index += (char_to_hex(m_address.s5[1]))*16*16*16;
+   mem_index += (char_to_hex(m_address.s5[0]))*16*16*16*16;
+   
+   if (mem_index > memory_size)
+   {
+//       printf( " memory: Memory index %d too large. \n", mem_index);  mem_index = mem_index % memory_size;
+   }
+}
+
+void memory::create_i_mem_address()
+{
+	// The first block to be sent should be the one containing the required instruction. 
+	// The other 3 blocks are sent subsequently.
+
+   mem_block = ( (char_to_hex(i_word_address.s5[4]))/4  ) *4;
+   mem_index = (char_to_hex(i_word_address.s5[3]))*16;
+   mem_index += (char_to_hex(i_word_address.s5[2]))*16*16;
+   mem_index += (char_to_hex(i_word_address.s5[1]))*16*16*16;
+   mem_index += (char_to_hex(i_word_address.s5[0]))*16*16*16*16;
+
+//   printf( "Memory: index %d block %d\n", mem_index, mem_block);
+
+   if (mem_index > memory_size)
+   {
+//       printf( " memory: Memory index %d too large. \n", mem_index);
+      stopSimulation();
+//       mem_index = mem_index % memory_size;
+   }
+}  
+void memory::read_instructions()
+{
+   strcpy (pkt_for_ibuffer.address, i_word_address.s5);
+
+   for ( i =0; i<4; i++)
+   {
+     strcpy(pkt_for_ibuffer.word0.s16, main_mem[mem_index + mem_block ].s16);
+     strcpy(pkt_for_ibuffer.word1.s16, main_mem[mem_index+ mem_block +1].s16);
+     strcpy(pkt_for_ibuffer.word2.s16, main_mem[mem_index+ mem_block +2].s16);
+     strcpy(pkt_for_ibuffer.word3.s16, main_mem[mem_index+ mem_block +3].s16);
+
+     pkt_for_ibuffer.address[4]= hex_to_char(mem_block);
+	
+//     mem_block = (mem_block + 4)%16;
+
+   }
+
+}
+
+$pre
+
+send_to_a = false;
+send_to_b = false;
+send_to_s = false;
+send_to_t = false;
+send_to_v = false;
+send_to_i = false;
+mem_busy_i = false;
+
+ for (i=0; i<4; i++)
+ { MemReqBuff[i].Type = 'E';}
+
+//-------------- initialise global variables ----------------//
+memory_size = 128; 
+memory_cycle_time = 11;
+
+for (int i =0; i<4; i++)
+{
+   a_count[i] =0;
+   s_count[i] =0;
+}
+
+$phase0 
+
+sim_from_port from_a (from_a_regs);
+sim_from_port from_b (from_b_regs);
+sim_from_port from_s (from_s_regs);
+sim_from_port from_t (from_t_regs);
+sim_from_port from_v (from_v_regs);
+sim_from_port from_i (from_i_buffers);
+sim_from_port control(from_cip);
+	
+// PROGRESS MEMORY REQUEST BUFFER PIPELINE AND CHECK FOR VALID REQUESTS
+
+ any_req = false;			// initialise valid request flag
+
+ for (int j=3; j>=1; j--)
+  {
+    MemReqBuff[j] = MemReqBuff[j-1];
+    if ((MemReqBuff[j-1].Type != 'E'))
+     {any_req = true;}	
+  }
+// printf("Memory: MemReqBuff[3].Type = %c \n", MemReqBuff[3].Type);
+
+ if (mem_busy_i)
+  {
+    MemReqBuff[0].Type = 'J';
+    i_block ++;
+    if (i_block > 3)
+     {
+      MemReqBuff[0].Type = 'E';
+      mem_busy_i = false;
+     }
+  }
+ else
+  {MemReqBuff[0].Type = 'E';}
+
+// IF LAST BUFFER CONTAINS A VALID REQUEST, ACCESS MEMORY
+
+    if (MemReqBuff[3].Type == 'A')
+     {
+      data64_pkt = main_mem[string_to_int(MemReqBuff[3].address.s5, 5)];
+      for (i=5; i>=0; i--)									// truncate 64-bit word to 24 bits
+       {data24_pkt.s6[i] = data64_pkt.s16[i+10];}
+ printf("MEMORY: last buffer contains A request, address  = %s, int address =  %d, value = %s \n", MemReqBuff[3].address.s5, string_to_int(MemReqBuff[3].address.s5, 5), data64_pkt.s16);
+      send_to_a = true;
+     }
+
+    if (MemReqBuff[3].Type == 'B')
+     {
+      data64_pkt = main_mem[string_to_int(MemReqBuff[3].address.s5, 5)];
+      for (i=5; i>=0; i--)									// truncate 64-bit word to 24 bits
+       {data24_pkt.s6[i] = data64_pkt.s16[i+10];}
+ //printf("MEMORY: last buffer contains B request, address  = %s \n", MemReqBuff[3].address.s5);
+      send_to_b = true;
+     }
+
+    if (MemReqBuff[3].Type == 'S')
+     {
+      data64_pkt = main_mem[string_to_int(MemReqBuff[3].address.s5, 5)];
+// printf("MEMORY: last buffer contains S request, address  = %s  \n", MemReqBuff[3].address.s5);
+        send_to_s = true;
+     }
+    if (MemReqBuff[3].Type == 'T')
+     {
+      data64_pkt = main_mem[string_to_int(MemReqBuff[3].address.s5, 5)];
+// printf("MEMORY: last buffer contains T request, address  = %s  \n", MemReqBuff[3].address.s5);
+        send_to_t = true;
+     }
+
+     if (MemReqBuff[3].Type == 'V')
+     {
+      data64_pkt = main_mem[string_to_int(MemReqBuff[3].address.s5, 5)];
+// printf("MEMORY: last buffer contains V request, address  = %s  \n", MemReqBuff[3].address.s5);
+        send_to_v = true;
+}
+
+     if (MemReqBuff[3].Type == 'I')
+      {
+	// access memory for 4 instruction words and copy to instruction output buffer
+	i_word_address = MemReqBuff[3].address;
+	create_i_mem_address();
+	read_instructions();
+	send_to_i = true;
+      }
+
+     if (MemReqBuff[3].Type == 'J')
+      {
+	// access memory for 4 instruction words and copy to instruction output buffer
+         mem_block = (mem_block + 4)%16;
+	read_instructions();
+	send_to_i = true;
+      }
+
+
+// InstrMemBuffer[0].valid = 0; // set pipeline 0 stages non-valid -
+// DataOutputBuffer[0].Q = 8; // will be set to a register Q value (!= 8) if there is a request
+	
+ if (sim_waiting(ev, from_i))
+  {
+    SIM_CAST(t_twenty_bit, i_word_address, ev);
+//   printf( "Memory: request from i_buffers \n");
+     MemReqBuff[0].Type = 'I';
+     MemReqBuff[0].reg_no = 0;
+     MemReqBuff[0].address = i_word_address;
+     mem_busy_i = true;
+     i_block = 0;
+   }
+
+   if (sim_waiting(ev, from_a))
+  {
+    if (ev.type() == READ_PKT)
+     { 
+       SIM_CAST(t_mem_read, read_request, ev);
+printf("Memory getting read request from Aregs, address = %s \n", read_request.address.s5);
+       MemReqBuff[0].Type = 'A';
+       MemReqBuff[0].reg_no = 0;
+       MemReqBuff[0].address = read_request.address;
+     }
+    if (ev.type() == S_READ_PKT)
+     { 
+       SIM_CAST(t_mem_read, read_request, ev);
+//printf("Memory getting read request from Aregs, address = %s \n", read_request.address.s5);
+       MemReqBuff[0].Type = 'S';
+       MemReqBuff[0].reg_no = 0;
+       MemReqBuff[0].address = read_request.address;
+     }
+    if (ev.type() == WRITE24_PKT)
+     {
+   SIM_CAST(t_mem_write24, pkt_from_ABregs, ev);
+   mem_index = string_to_int(pkt_from_ABregs.address.s5, 5);
+   create_64bit (pkt_from_ABregs.ab.s6, mem_value.s16);			// convert s24-bit value to 64-bit value
+   main_mem.Update( mem_index, mem_value);
+    }
+  }
+
+ if (sim_waiting(ev, from_b))
+  {
+    if (ev.type() == READ_PKT)
+     { 
+       SIM_CAST(t_mem_read, read_request, ev);
+//printf("Memory getting read request from Bregs, address = %s \n", read_request.address.s5);
+       MemReqBuff[0].Type = 'B';
+       MemReqBuff[0].reg_no = 0;
+       MemReqBuff[0].address = read_request.address;
+     }
+    if (ev.type() == WRITE24_PKT)
+     {
+   SIM_CAST(t_mem_write24, pkt_from_ABregs, ev);
+   mem_index = string_to_int(pkt_from_ABregs.address.s5, 5);
+   create_64bit (pkt_from_ABregs.ab.s6, mem_value.s16);			// convert s24-bit value to 64-bit value
+   main_mem.Update( mem_index, mem_value);
+    }
+  }
+
+if (sim_waiting(ev, from_s))									// 13h
+  {
+      SIM_CAST(t_mem_write64, pkt_from_STregs, ev);
+      mem_index = string_to_int(pkt_from_STregs.address.s5, 5);
+      main_mem.Update( mem_index, pkt_from_STregs.st);
+//printf("Memory updating line %d \n", mem_index);
+  }
+
+if (sim_waiting(ev, from_t))
+  {
+    if (ev.type() == READ_PKT)
+     {
+       SIM_CAST(t_mem_read, read_request, ev);
+//printf("Memory getting read request from Tregs, address = %s \n", read_request.address.s5);
+       MemReqBuff[0].Type = 'T';
+       MemReqBuff[0].reg_no = 0;
+       MemReqBuff[0].address = read_request.address;
+      }
+    if (ev.type() == WRITE64_PKT)
+     {
+      SIM_CAST(t_mem_write64, pkt_from_STregs, ev);
+      mem_index = string_to_int(pkt_from_STregs.address.s5, 5);
+      main_mem.Update( mem_index, pkt_from_STregs.st);
+//printf("Memory updating line %d \n", mem_index);
+     }
+  }
+
+if (sim_waiting(ev, from_v))
+  {
+    if (ev.type() == READ_PKT)
+     {
+       SIM_CAST(t_mem_read, read_request, ev);
+//printf("Memory getting read request from Vregs, address = %s \n", read_request.address.s5);
+       MemReqBuff[0].Type = 'V';
+       MemReqBuff[0].reg_no = 0;
+       MemReqBuff[0].address = read_request.address;
+      }
+    if (ev.type() == WRITE64_PKT)
+     {
+      SIM_CAST(t_mem_write64, pkt_from_STregs, ev);
+      mem_index = string_to_int(pkt_from_STregs.address.s5, 5);
+      main_mem.Update( mem_index, pkt_from_STregs.st);
+//printf("Memory updating line %d \n", mem_index);
+     }
+  }
+
+$phase1
+
+//printf("Clock cycle %d Phase 1\n", cycle);
+
+ if (send_to_i)
+  {
+    send_FOURWORDS(to_i_buffers, pkt_for_ibuffer);
+    send_to_i = false;
+  }
+ 
+ if (send_to_a)
+  {
+   send_DATA24_PKT(to_a_regs, data24_pkt );
+    send_to_a = false;
+  }
+
+  if (send_to_b)
+  {
+    send_DATA24_PKT(to_b_regs, data24_pkt );
+    send_to_b = false;
+  }
+
+if (send_to_s)
+  {
+   send_DATA64_PKT(to_s_regs, data64_pkt );
+    send_to_s = false;
+  }
+
+if (send_to_t)
+  {
+   send_DATA64_PKT(to_t_regs, data64_pkt );
+    send_to_t = false;
+  }
+
+if (send_to_v)
+  {
+   send_DATA64_PKT(to_v_regs, data64_pkt );
+    send_to_v = false;
+  }
+

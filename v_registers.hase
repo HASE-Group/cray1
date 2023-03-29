@@ -1,0 +1,1196 @@
+// Project	Cray 1
+// Entity	V Registers
+// 		v_registers.hase
+// Date 	Jun 2018
+
+/* PARAMS for this entity are as follows:
+			RARRAY (vect , register0, 64 );
+			RARRAY (vect , register1, 64 );
+			RARRAY (vect , register2, 64 );
+			RARRAY (vect , register3, 64 );
+			RARRAY (vect , register4, 64 );
+			RARRAY (vect , register5, 64 );
+			RARRAY (vect , register6, 64 );
+			RARRAY (vect , register7, 64 );
+			RINT ( VL, 0 );
+			RINT ( chaining , 1 );
+
+  8 registers holding 64 64-bit scalars in hex and integer format
+*/
+
+$class_decls
+
+ cip * myCIP;
+ v_mask * myVM;
+ vector_reg * myVReg0;
+ vector_reg * myVReg1;
+ vector_reg * myVReg2;
+ vector_reg * myVReg3;
+ vector_reg * myVReg4;
+ vector_reg * myVReg5;
+ vector_reg * myVReg6;
+ vector_reg * myVReg7;
+
+// Variable Declarations
+
+ bool Vshift_op, SVlogic_op, VVlogic_op, SMlogic_op, VMlogic_op, SVadd_op, VVadd_op;
+ bool SFadd_op, SFmul_op, VFadd_op, VFmul_op;
+ bool read_Memory, write_to_Mem, read_block, end_read_block, write_block;
+ bool sendV_to_vshift;
+ bool sendV_to_vlogic, sendVV_to_vlogic, sendM_to_vlogic, sendVM_to_vlogic;
+ bool sendV_to_vadd, sendVV_to_vadd;
+ bool sendV_to_fadd, sendVV_to_fadd, sendV_to_fmul, sendVV_to_fmul;
+ bool send_to_Aregs, send_to_Sregs;
+ bool reset_Vshift_busy, reset_Vlogic_busy, reset_Vadd_busy, reset_Fmul_busy, reset_Fadd_busy;
+
+ int old_state;
+ int e, i, j, k , element;
+ int no_of_elements;
+int reg_no, test_result;
+ int MV_reg_no, VM_reg_no, requests, replies;
+ int Vtr_reg_no, Vtr_element;
+ int Vshf_reg_no, Vshf_element, Vshf_reg_i, Vshf_results;
+ int Vlog_reg_no, Vlog_element,  Vlog_reg1, Vlog_reg2, Vlog_results;
+ int Vadd_reg_no, Vadd_element, Vadd_reg1, Vadd_reg2, Vadd_results;
+ int Fadd_reg_no, Fadd_element, Fadd_reg1, Fadd_reg2, Fadd_results;
+ int Fmul_reg_no, Fmul_element, Fmul_reg1, Fmul_reg2, Fmul_results;
+ int overflow;
+
+ int Vregs_Busy;
+ int reserved[8];
+ int chain_slot[8];
+
+int nonzero(int i); //returns 0 if Si=0, 1 otherwise
+int negative(int i);  //returns 0 if Si>=0, 1 otherwise
+
+ a_struct packet_to_a;
+ s_struct packet_to_s;
+ s_struct s_result; 
+ t_v_element reg_value, Vadd_reg_value, Vlog_reg_value, Vshf_reg_value, Vtr_reg_value;
+ t_v_element Fadd_reg_value, Fmul_reg_value;
+ a_2values op_values;
+
+ t_twenty_bit mem_address;
+ t_twentyfour_bit value_pkt;
+ t_mem_read mem_read_pkt;
+ t_sixtyfour_bit value, shf_value, log_value, mul_value, add_value, mem_value;
+ t_mem_write64 mem_write_pkt;
+
+tr_packet tr_pkt;
+tr64_packet tr64_pkt;
+
+t_sixtyfour_bit one, zero, signbit;
+t_sixtyfour_bit floatzero, floatsignbit;
+t_sixtyfour_bit get_value(int reg_no, int element);
+
+s_2values shf_values_packet, log_values_packet, add_values_packet, mul_values_packet;
+m_value mv_packet;
+m_2values m2v_packet;
+a_struct a_pkt;
+s_struct t_pkt;
+s_struct s_pkt;
+v_struct v_pkt;
+s_struct update;
+
+void set_reservation(int i);
+void set_chaining(int i);
+void unset_reservation(int i);
+void transmit1_T (int i);
+void form_next_address();
+void sendV_to_Vshift (int i);
+void sendV_to_Vlogic (int k);
+void sendVV_to_Vlogic (int j, int k);
+void sendSM_to_Vlogic(int k);
+void sendVM_to_Vlogic(int j, int k);
+void sendV_to_Vadd (int k);
+void sendVV_to_Vadd (int j, int k);
+void sendV_to_Fadd (int k);
+void sendVV_to_Fadd (int j, int k);
+void sendV_to_Fmul (int k);
+void sendVV_to_Fmul (int j, int k);
+void write_value (int reg_no, int element, t_v_element reg_value);
+
+$class_defs
+
+/*
+int v_registers::nonzero(int i)
+{
+   for (int j = 0; j<element_size; j++)
+   {
+      if ( registers[i].s16[j] !='0') 
+	return 1;
+   }
+   return 0;
+}
+
+
+int v_registers::negative(int i)
+{
+   int sign_bit;
+   sign_bit = char_to_hex(registers[i].s16[0]) /8;
+   return sign_bit;
+}
+*/
+void v_registers::set_reservation(int i)
+{
+   reserved[i] = 1;
+   Vregs_Busy ++;
+//		printf("VREGS: setting Vreg %d busy \n", i);
+   switch (i)
+   {
+    case 0: Vres_bits.res0 = 'R'; 
+		myVReg0->setR();
+		break;
+    case 1: Vres_bits.res1 = 'R';
+		myVReg1->setR();
+		break;
+    case 2: Vres_bits.res2 = 'R';
+		myVReg2->setR();
+		break;
+    case 3: Vres_bits.res3 = 'R';
+		myVReg3->setR();
+		break;
+    case 4: Vres_bits.res4 = 'R';
+		myVReg4->setR();
+		break;
+    case 5: Vres_bits.res5 = 'R';
+		myVReg5->setR();
+		break;
+    case 6: Vres_bits.res6 = 'R';
+		myVReg6->setR();
+		break;
+    case 7: Vres_bits.res7 = 'R';
+		myVReg7->setR();
+		break;
+   }
+}
+
+void v_registers::set_chaining(int i)
+{
+   reserved[i] = 1;
+   Vregs_Busy ++;
+   switch (i)
+   {
+    case 0: Vres_bits.res0 = 'C'; 
+		myVReg0->setC();
+		break;
+    case 1: Vres_bits.res1 = 'C';
+		myVReg1->setC();
+		break;
+    case 2: Vres_bits.res2 = 'C';
+		myVReg2->setC();
+		break;
+    case 3: Vres_bits.res3 = 'C';
+		myVReg3->setC();
+		break;
+    case 4: Vres_bits.res4 = 'C'; 
+		myVReg4->setC();
+		break;
+    case 5: Vres_bits.res5 = 'C';
+		myVReg5->setC();
+		break;
+    case 6: Vres_bits.res6 = 'C';
+		myVReg6->setC();
+		break;
+    case 7: Vres_bits.res7 = 'C';
+		myVReg7->setC();
+		break;
+   }
+   dump_state();
+}
+
+void v_registers::unset_reservation(int i)
+{
+  reserved[i] = 0;
+  Vregs_Busy --;
+//		printf("VREGS: setting Vreg %d free \n", i);
+   switch (i)
+   {
+    case 0: Vres_bits.res0 = '_';  
+		myVReg0->setI();
+		break;
+    case 1: Vres_bits.res1 = '_';  
+		myVReg1->setI();
+		break;
+    case 2: Vres_bits.res2 = '_';  
+		myVReg2->setI();
+		break;
+    case 3: Vres_bits.res3 = '_';  
+		myVReg3->setI();
+		break;
+    case 4: Vres_bits.res4 = '_';  
+		myVReg4->setI();
+		break;
+    case 5: Vres_bits.res5 = '_';   
+		myVReg5->setI();
+		break;
+    case 6: Vres_bits.res6 = '_';  
+		myVReg6->setI();
+		break;
+    case 7: Vres_bits.res7 = '_';   
+		myVReg7->setI();
+		break;
+   }
+   dump_state();
+}
+/*
+void v_registers::transmit1_T(int i)
+{
+	value = VRegs[i].v_hex;			//  S[i]
+	send_S_1VALUE (to_t_regs, value);
+}
+*/
+t_sixtyfour_bit  v_registers::get_value (int reg_no, int element)
+{
+ switch (reg_no)
+  {
+   case 0: return myVReg0->vector_register[element].v_hex;
+   case 1: return myVReg1->vector_register[element].v_hex;
+   case 2: return myVReg2->vector_register[element].v_hex;
+   case 3: return myVReg3->vector_register[element].v_hex;
+   case 4: return myVReg4->vector_register[element].v_hex;
+   case 5: return myVReg5->vector_register[element].v_hex;
+   case 6: return myVReg6->vector_register[element].v_hex;
+   case 7: return myVReg7->vector_register[element].v_hex;
+   }
+   return zero;
+}
+
+void v_registers::write_value (int reg_no, int element, t_v_element reg_value)
+{
+ switch (reg_no)
+  {
+   case 0:
+	myVReg0->vector_register.Update(element, reg_value);
+	break;
+   case 1:
+	myVReg1->vector_register.Update(element, reg_value);
+	break;
+   case 2:
+	myVReg2->vector_register.Update(element, reg_value);
+	break;
+   case 3:
+	myVReg3->vector_register.Update(element, reg_value);
+	break;
+   case 4:
+	myVReg4->vector_register.Update(element, reg_value);
+	break;
+   case 5:
+	myVReg5->vector_register.Update(element, reg_value);
+	break;
+   case 6:
+	myVReg6->vector_register.Update(element, reg_value);
+	break;
+   case 7:
+	myVReg7->vector_register.Update(element, reg_value);
+	break;
+/*
+   case 0:
+	VReg0.Update(element, reg_value);
+	break;
+   case 1:
+	VReg1.Update(element, reg_value);
+	break;
+   case 2:
+	VReg2.Update(element, reg_value);
+	break;
+   case 3:
+	VReg3.Update(element, reg_value);
+	break;
+   case 4:
+	VReg4.Update(element, reg_value);
+	break;
+   case 5:
+	VReg5.Update(element, reg_value);
+	break;
+   case 6:
+	VReg6.Update(element, reg_value);
+	break;
+   case 7:
+	VReg7.Update(element, reg_value);
+	break;
+*/
+  }
+}
+
+void v_registers::form_next_address()
+{
+   overflow = 0;
+   for (i=4; i>=0; i--)
+	{mem_address.s5[i] = add_hex_digits( mem_address.s5[i], op_values.op2.s6[i+1], overflow);}
+}
+
+void v_registers::sendV_to_Vshift(int i)
+{
+	if ((VL > 64) || (VL == 0))
+	 {no_of_elements = 64;}
+	else
+	 {no_of_elements = VL;}
+	Vshf_reg_i = i;
+	Vshf_element = 0;
+	Vshf_results = 0;
+	send_S_1VALUE( to_v_shift, get_value(Vshf_reg_i,Vshf_element));
+	Vshift_op = true;
+}
+
+void v_registers::sendV_to_Vlogic (int k)
+{
+	if ((VL > 64) || (VL == 0))
+	 {no_of_elements = 64;}
+	else
+	 {no_of_elements = VL;}
+	Vlog_reg2 = k;
+	Vlog_element = 0;
+	Vlog_results = 0;
+	send_S_1VALUE( to_v_logic, get_value(Vlog_reg2,Vlog_element));
+	SVlogic_op = true;
+}
+
+void v_registers::sendVV_to_Vlogic(int j, int k)
+{
+	if ((VL > 64) || (VL == 0))
+	 {no_of_elements = 64;}
+	else
+	 {no_of_elements = VL;}
+	Vlog_reg1 = j;
+	Vlog_reg2 = k;
+	Vlog_element = 0;
+	Vlog_results = 0;
+	strcpy(log_values_packet.op1.s16, get_value(Vlog_reg1,Vlog_element).s16);
+	strcpy(log_values_packet.op2.s16, get_value(Vlog_reg2,Vlog_element).s16);
+	send_S_2VALUES ( to_v_logic, log_values_packet);
+	VVlogic_op = true;
+}
+
+void v_registers::sendSM_to_Vlogic (int k)
+{
+	if ((VL > 64) || (VL == 0))
+	 {no_of_elements = 64;}
+	else
+	 {no_of_elements = VL;}
+	Vlog_reg1 = j;
+	Vlog_reg2 = k;
+	Vlog_element = 0;
+	Vlog_results = 0;
+	mv_packet.VMbit = myVM->vm_bits[Vlog_element];
+	strcpy(mv_packet.op2.s16,  get_value(Vlog_reg2,Vlog_element).s16);
+	send_M_1VALUE ( to_v_logic, mv_packet);
+	SMlogic_op = true;
+}
+
+void v_registers::sendVM_to_Vlogic(int j, int k)
+{
+//		printf("Vregs starting sendVM to Vlogic \n");
+	if ((VL > 64) || (VL == 0))
+	 {no_of_elements = 64;}
+	else
+	 {no_of_elements = VL;}
+	Vlog_reg1 = j;
+	Vlog_reg2 = k;
+	Vlog_element = 0;
+	Vlog_results = 0;
+	m2v_packet.VMbit = myVM->vm_bits[Vlog_element];
+	strcpy(m2v_packet.op1.s16, get_value(Vlog_reg1,Vlog_element).s16);
+	strcpy(m2v_packet.op2.s16, get_value(Vlog_reg2,Vlog_element).s16);
+	send_M_2VALUES ( to_v_logic, m2v_packet);
+	VMlogic_op = true;
+}
+
+void v_registers::sendV_to_Vadd (int k)
+ {
+	if ((VL > 64) || (VL == 0))
+	 {no_of_elements = 64;}
+	else
+	 {no_of_elements = VL;}
+	Vadd_reg2 = k;
+	Vadd_element = 0;
+	Vadd_results = 0;
+	send_S_1VALUE( to_v_add, get_value(Vadd_reg2,Vadd_element));
+	SVadd_op = true;
+ }
+
+void v_registers::sendVV_to_Vadd(int j, int k)
+{
+	if ((VL > 64) || (VL == 0))
+	 {no_of_elements = 64;}
+	else
+	 {no_of_elements = VL;}
+	Vadd_reg1 = j;
+	Vadd_reg2 = k;
+	Vadd_element = 0;
+	Vadd_results = 0;
+	strcpy(add_values_packet.op1.s16, get_value(Vadd_reg1,Vadd_element).s16);
+	strcpy(add_values_packet.op2.s16, get_value(Vadd_reg2,Vadd_element).s16);
+	send_S_2VALUES ( to_v_add, add_values_packet);
+	VVadd_op = true;
+}
+
+void v_registers::sendV_to_Fmul (int k)
+ {
+	if ((VL > 64) || (VL == 0))
+	 {no_of_elements = 64;}
+	else
+	 {no_of_elements = VL;}
+	Fmul_reg2 = k;
+	Fmul_element = 0;
+	Fmul_results = 0;
+	send_S_1VALUE( to_f_mul, get_value(Fmul_reg2,Fmul_element));
+	SFmul_op = true;
+ }
+
+void v_registers::sendVV_to_Fmul(int j, int k)
+{
+	if ((VL > 64) || (VL == 0))
+	 {no_of_elements = 64;}
+	else
+	 {no_of_elements = VL;}
+	Fmul_reg1 = j;
+	Fmul_reg2 = k;
+	Fmul_element = 0;
+	Fmul_results = 0;
+	strcpy(mul_values_packet.op1.s16, get_value(Fmul_reg1,Fmul_element).s16);
+	strcpy(mul_values_packet.op2.s16, get_value(Fmul_reg2,Fmul_element).s16);
+	send_S_2VALUES ( to_f_mul, mul_values_packet);
+	VFmul_op = true;
+}
+
+void v_registers::sendV_to_Fadd (int k)
+ {
+	if ((VL > 64) || (VL == 0))
+	 {no_of_elements = 64;}
+	else
+	 {no_of_elements = VL;}
+	Fadd_reg2 = k;
+	Fadd_element = 0;
+	Fadd_results = 0;
+	send_S_1VALUE( to_f_add, get_value(Fadd_reg2,Fadd_element));
+	SFadd_op = true;
+ }
+
+void v_registers::sendVV_to_Fadd(int j, int k)
+{
+	if ((VL > 64) || (VL == 0))
+	 {no_of_elements = 64;}
+	else
+	 {no_of_elements = VL;}
+	Fadd_reg1 = j;
+	Fadd_reg2 = k;
+	Fadd_element = 0;
+	Fadd_results = 0;
+	strcpy(add_values_packet.op1.s16, get_value(Fadd_reg1,Fadd_element).s16);
+	strcpy(add_values_packet.op2.s16, get_value(Fadd_reg2,Fadd_element).s16);
+	send_S_2VALUES ( to_f_add, add_values_packet);
+	VFadd_op = true;
+}
+
+
+$pre
+
+ myCIP = (cip*) sim.get_entity (sim.get_entity_id( "CIP" ) );
+ myVM = (v_mask*) sim.get_entity (sim.get_entity_id( "VECTOR_MASK" ) );
+ myVReg0 =  (vector_reg*) sim.get_entity (sim.get_entity_id( "V_REGISTER_0" ) );
+ myVReg1 =  (vector_reg*) sim.get_entity (sim.get_entity_id( "V_REGISTER_1" ) );
+ myVReg2 =  (vector_reg*) sim.get_entity (sim.get_entity_id( "V_REGISTER_2" ) );
+ myVReg3 =  (vector_reg*) sim.get_entity (sim.get_entity_id( "V_REGISTER_3" ) );
+ myVReg4 =  (vector_reg*) sim.get_entity (sim.get_entity_id( "V_REGISTER_4" ) );
+ myVReg5 =  (vector_reg*) sim.get_entity (sim.get_entity_id( "V_REGISTER_5" ) );
+ myVReg6 =  (vector_reg*) sim.get_entity (sim.get_entity_id( "V_REGISTER_6" ) );
+ myVReg7 =  (vector_reg*) sim.get_entity (sim.get_entity_id( "V_REGISTER_7" ) );
+
+
+strcpy(a_pkt.a.s6, "000000");
+strcpy(one.s16,    "0000000000000001");
+strcpy(zero.s16,    "0000000000000000");
+strcpy(signbit.s16, "8000000000000000");
+strcpy(floatzero.s16,    "0000000000000000");
+strcpy(floatsignbit.s16, "8000000000000000");
+
+ Vshift_op = false;
+ SVlogic_op = false;
+ VVlogic_op = false;
+ SMlogic_op = false;
+ VMlogic_op = false;
+ SVadd_op  = false;
+ VVadd_op  = false;
+ SFadd_op = false; 
+ VFadd_op = false; 
+ SFmul_op = false; 
+ VFmul_op = false; 
+ sendV_to_vshift = false;
+ sendV_to_vlogic = false;  
+ sendVV_to_vlogic = false;  
+ sendV_to_vadd = false;
+ sendVV_to_vadd = false;
+ sendV_to_fadd = false;
+ sendVV_to_fadd = false;
+ sendV_to_fmul = false;
+ sendVV_to_fmul = false;
+ send_to_Aregs = false;
+ send_to_Sregs = false;
+ read_block = false;
+ write_block = false;
+ end_read_block = false;
+ reset_Vshift_busy = false;
+ reset_Vlogic_busy = false;
+ reset_Vadd_busy = false;
+ reset_Fmul_busy = false;
+ reset_Fadd_busy = false;
+
+// reset served and chain slot bits and reset register values to 0
+
+ for (i=0; i<8; i++)
+  {
+    reserved[i] = 0;
+    chain_slot[i] = 0;
+  }
+ myVReg0->setI();
+ myVReg1->setI();
+ myVReg2->setI();
+ myVReg3->setI();
+ myVReg4->setI();
+ myVReg5->setI();
+ myVReg6->setI();
+ myVReg7->setI();
+
+ strcpy(reg_value.v_hex.s16, "0000000000000000");
+ reg_value.v_int = 0;
+ for (e=0; e<64; e++)
+  {
+   myVReg0->vector_register.Update( e, reg_value);
+   myVReg1->vector_register.Update( e, reg_value);
+   myVReg2->vector_register.Update( e, reg_value);
+   myVReg3->vector_register.Update( e, reg_value);
+   myVReg4->vector_register.Update( e, reg_value);
+   myVReg5->vector_register.Update( e, reg_value);
+   myVReg6->vector_register.Update( e, reg_value);
+   myVReg7->vector_register.Update( e, reg_value);
+/*
+   VReg0.Update( e, reg_value);
+   VReg1.Update( e, reg_value);
+   VReg2.Update( e, reg_value);
+   VReg3.Update( e, reg_value);
+   VReg4.Update( e, reg_value);
+   VReg5.Update( e, reg_value);
+   VReg6.Update( e, reg_value);
+   VReg7.Update( e, reg_value);
+*/
+  }
+
+ Vregs_Busy = 0;
+ my_state = V_REGS_IDLE;
+ old_state = V_REGS_IDLE;
+ dump_state();
+
+
+$phase0
+
+// predicates for use in sim_waiting tests
+
+ sim_from_port from_CIP (from_cip);
+ sim_from_port from_Memory (from_memory);
+ sim_from_port from_V_SHIFT (from_v_shift);
+ sim_from_port from_V_LOGIC (from_v_logic);
+ sim_from_port from_V_ADD (from_v_add);
+ sim_from_port from_F_MUL (from_f_mul);
+ sim_from_port from_F_ADD (from_f_add);
+ sim_from_port from_Aregs (from_a_regs);
+ sim_from_port from_Sregs (from_s_regs);
+
+ if (sim_waiting(ev, from_Memory))
+  {
+   SIM_CAST (t_sixtyfour_bit, mem_value, ev);
+   reg_value.v_hex = mem_value;
+   reg_value.v_int = string_to_long(mem_value.s16, 16);
+    if (replies == 0)
+     {chain_slot[MV_reg_no] = 1;
+//		printf("Vregs: setting chain_slot = 1 for Vreg %d \n", MV_reg_no);
+}
+    else
+      {chain_slot[MV_reg_no] = 0;
+//		printf("Vregs: setting chain_slot = 0 for Vreg %d \n", MV_reg_no);
+}
+   write_value (MV_reg_no, replies, reg_value);
+   replies ++;							// replies used as element number in Vreg selected by reg_no
+   if (replies == no_of_elements)
+    {
+     unset_reservation(MV_reg_no);
+     myCIP->V_transfer = false;
+    }
+  }
+
+     if (sim_waiting(ev, from_V_SHIFT) )
+   {
+    SIM_CAST(s_struct, s_result , ev);
+    Vshf_reg_no = s_result.reg_no;
+    Vshf_reg_value.v_hex = s_result.s;
+//		 printf("v_regS getting SHIFT result %s for register %d  \n", reg_value.v_hex.s16, reg_no);
+    Vshf_reg_value.v_int = string_to_long(s_result.s.s16, 16);
+    if (Vshf_results == 0)
+     {chain_slot[Vshf_reg_no] = 1;
+//		printf("V_REGS setting chain slot = 1 for register %d \n", Vshf_reg_no);
+     }
+    else
+      {chain_slot[Vshf_reg_no] = 0;}
+    write_value (Vshf_reg_no, Vshf_results, Vshf_reg_value);
+    Vshf_results ++;			// Vshf_results used as element number in Vreg selected by Vshf_reg_no
+    if (Vshf_results == no_of_elements)
+     {unset_reservation(Vshf_reg_no);}
+   }
+
+   if (sim_waiting(ev, from_V_LOGIC) )
+   {
+    SIM_CAST(s_struct, s_result , ev);
+    Vlog_reg_no = s_result.reg_no;
+    Vlog_reg_value.v_hex = s_result.s;
+//		 printf("V_REGS getting LOGIC result %s for register %d  \n", reg_value.v_hex.s16, Vlog_reg_no);
+    Vlog_reg_value.v_int = string_to_long(s_result.s.s16, 16);
+    if (Vlog_results == 0)
+     {chain_slot[Vlog_reg_no] = 1;
+//		printf("V_REGS setting chain slot = 1 for register %d \n", Vlog_reg_no);
+     }
+    else
+      {chain_slot[Vlog_reg_no] = 0;}
+    write_value (Vlog_reg_no, Vlog_results, Vlog_reg_value);
+    Vlog_results ++;			// Vlog_results used as element number in Vreg selected by Vlog_reg_no
+    if (Vlog_results == no_of_elements)
+     {unset_reservation(Vlog_reg_no);}
+  }
+
+  if (sim_waiting(ev, from_V_ADD) )
+   {
+    SIM_CAST(s_struct, s_result , ev);
+    Vadd_reg_no = s_result.reg_no;
+    Vadd_reg_value.v_hex = s_result.s;
+//		 printf("V_REGS getting ADD result %s for register %d  \n", reg_value.v_hex.s16, Vadd_reg_no);
+    Vadd_reg_value.v_int = string_to_long(s_result.s.s16, 16);
+    if (Vadd_results == 0)
+     {chain_slot[Vadd_reg_no] = 1;}
+    else
+      {chain_slot[Vadd_reg_no] = 0;}
+    write_value (Vadd_reg_no, Vadd_results, Vadd_reg_value);
+    Vadd_results ++;			// Vadd_results used as element number in Vreg selected by Vadd_reg_no
+    if (Vadd_results == no_of_elements)
+     {unset_reservation(Vadd_reg_no);}
+  }
+
+   if (sim_waiting(ev, from_F_MUL) )
+   {
+    SIM_CAST(s_struct, s_result , ev);
+    Fmul_reg_no = s_result.reg_no;
+    Fmul_reg_value.v_hex = s_result.s;
+		 printf("V_REGS getting F_MUL result %s for register %d  \n", reg_value.v_hex.s16, Fmul_reg_no);
+    Fmul_reg_value.v_int = string_to_long(s_result.s.s16, 16);
+    if (Fmul_results == 0)
+     {chain_slot[Fmul_reg_no] = 1;}
+    else
+      {chain_slot[Fmul_reg_no] = 0;}
+    write_value (Fmul_reg_no, Fmul_results, Fmul_reg_value);
+    Fmul_results ++;			// Fmul_results used as element number in Vreg selected by Fmul_reg_no
+    if (Fmul_results == no_of_elements)
+     {unset_reservation(Fmul_reg_no);}
+  }
+
+   if (sim_waiting(ev, from_F_ADD) )
+   {
+    SIM_CAST(s_struct, s_result , ev);
+    Fadd_reg_no = s_result.reg_no;
+    Fadd_reg_value.v_hex = s_result.s;
+//		 printf("V_REGS getting ADD result %s for register %d  \n", reg_value.v_hex.s16, Fadd_reg_no);
+    Fadd_reg_value.v_int = string_to_long(s_result.s.s16, 16);
+    if (Fadd_results == 0)
+     {chain_slot[Fadd_reg_no] = 1;}
+    else
+      {chain_slot[Fadd_reg_no] = 0;}
+    write_value (Fadd_reg_no, Fadd_results, Fadd_reg_value);
+    Fadd_results ++;			// Fadd_results used as element number in Vreg selected by Fadd_reg_no
+    if (Fadd_results == no_of_elements)
+     {unset_reservation(Fadd_reg_no);}
+  }
+
+if (read_block)
+  {
+   requests ++;
+   if (requests < no_of_elements)
+    { 
+      form_next_address();
+      mem_read_pkt.address = mem_address;
+      read_Memory = true;
+    }
+   else
+    {read_block = false;}
+  }
+
+ if (write_block)
+  {
+   requests ++;
+   if (requests < no_of_elements)
+    { 
+      form_next_address();
+      mem_write_pkt.address = mem_address;
+     strcpy(mem_write_pkt.st.s16, get_value(VM_reg_no, requests).s16);
+      write_to_Mem = true;
+    }
+   else
+    {
+     unset_reservation(VM_reg_no);
+     myCIP->V_transfer = false;
+     write_block = false;
+    }
+  }
+
+ if (Vshift_op)
+  {
+   Vshf_element ++;
+   if (Vshf_element < no_of_elements)
+    {
+      strcpy(shf_value.s16, get_value(Vshf_reg_i,Vshf_element).s16);
+      sendV_to_vshift = true;
+    }
+   else
+    {
+     Vshift_op = false;
+     unset_reservation(Vshf_reg_i);
+     reset_Vshift_busy = true;       
+    }
+  }
+
+ if (SVlogic_op)
+  {
+   Vlog_element ++;
+   if (Vlog_element < no_of_elements)
+    {
+      strcpy(log_value.s16, get_value(Vlog_reg2,Vlog_element).s16);
+      sendV_to_vlogic = true;
+    }
+   else
+    {
+     SVlogic_op = false;
+     unset_reservation(Vlog_reg2);
+     reset_Vlogic_busy = true;
+    }
+  }
+
+  if (VVlogic_op)
+  {
+   Vlog_element ++;
+   if (Vlog_element < no_of_elements)
+    {
+      strcpy(log_values_packet.op1.s16, get_value(Vlog_reg1, Vlog_element).s16);
+      strcpy(log_values_packet.op2.s16, get_value(Vlog_reg2, Vlog_element).s16);
+      sendVV_to_vlogic = true;
+    }
+   else
+     {
+     VVlogic_op = false;
+     unset_reservation(Vlog_reg1);
+     unset_reservation(Vlog_reg2);
+     reset_Vlogic_busy = true;
+    }
+ }
+
+ if (SMlogic_op)
+  {
+   Vlog_element ++;
+   if (Vlog_element < no_of_elements)
+    {
+      mv_packet.VMbit = myVM->vm_bits[Vlog_element];
+      strcpy(mv_packet.op2.s16,  get_value(Vlog_reg2,Vlog_element).s16);
+      sendM_to_vlogic = true;
+    }
+   else
+    {
+     SMlogic_op = false;
+     unset_reservation(Vlog_reg2);
+     reset_Vlogic_busy = true;
+    }
+  }
+
+  if (VMlogic_op)
+  {
+   Vlog_element ++;
+   if (Vlog_element < no_of_elements)
+    {
+     m2v_packet.VMbit = myVM->vm_bits[Vlog_element];
+     strcpy(m2v_packet.op1.s16, get_value(Vlog_reg1,Vlog_element).s16);
+     strcpy(m2v_packet.op2.s16, get_value(Vlog_reg2,Vlog_element).s16);
+     sendVM_to_vlogic = true;
+    }
+   else
+    {
+     VMlogic_op = false;
+     unset_reservation(Vlog_reg1);
+     unset_reservation(Vlog_reg2);
+     reset_Vlogic_busy = true;
+    }
+  }
+
+ if (SVadd_op)
+  {
+   Vadd_element ++;
+   if (Vadd_element < no_of_elements)
+    {
+      strcpy(add_value.s16, get_value(Vadd_reg2,Vadd_element).s16);
+//	printf("Vregs: getting value %s from V reg %d element %d \n", value.s16, Vadd_reg2, Vadd_element);
+      sendV_to_vadd = true;
+    }
+   else
+    {
+     SVadd_op = false;
+     unset_reservation(Vadd_reg2);
+     reset_Vadd_busy = true;
+    }
+  }
+ 
+if (VVadd_op)
+  {
+   Vadd_element ++;
+   if (Vadd_element < no_of_elements)
+    {
+      strcpy(add_values_packet.op1.s16, get_value(Vadd_reg1, Vadd_element).s16);
+      strcpy(add_values_packet.op2.s16, get_value(Vadd_reg2, Vadd_element).s16);
+      sendVV_to_vadd = true;
+    }
+   else
+    {
+      VVadd_op = false;
+      unset_reservation(Vadd_reg1);
+      unset_reservation(Vadd_reg2);
+      reset_Vadd_busy = true;
+    }
+  }
+ 
+ if (SFmul_op)
+  {
+   Fmul_element ++;
+   if (Fmul_element < no_of_elements)
+    {
+      strcpy(mul_value.s16, get_value(Fmul_reg2,Fmul_element).s16);
+//	printf("Vregs: getting value %s from V reg %d element %d \n", value.s16, Fmul_reg2, Fmul_element);
+      sendV_to_fmul = true;
+    }
+   else
+    {
+     SFmul_op = false;
+      unset_reservation(Fmul_reg2);
+      reset_Fmul_busy = true;
+    }
+  }
+
+if (VFmul_op)
+  {
+   Fmul_element ++;
+   if (Fmul_element < no_of_elements)
+    {
+      strcpy(mul_values_packet.op1.s16, get_value(Fmul_reg1, Fmul_element).s16);
+      strcpy(mul_values_packet.op2.s16, get_value(Fmul_reg2, Fmul_element).s16);
+      sendVV_to_fmul = true;
+    }
+   else
+    {
+      VFmul_op = false;
+      unset_reservation(Fmul_reg1);
+      unset_reservation(Fmul_reg2);
+      reset_Fmul_busy = true;
+    }
+  }
+
+ if (SFadd_op)
+  {
+   Fadd_element ++;
+   if (Fadd_element < no_of_elements)
+    {
+      strcpy(add_value.s16, get_value(Fadd_reg2,Fadd_element).s16);
+//	printf("Vregs: getting value %s from V reg %d element %d \n", value.s16, Fadd_reg2, Fadd_element);
+      sendV_to_fadd = true;
+    }
+   else
+    {
+     SFadd_op = false;
+     unset_reservation(Fadd_reg2);
+     reset_Fadd_busy = true;
+    }
+  }
+ 
+if (VFadd_op)
+  {
+   Fadd_element ++;
+   if (Fadd_element < no_of_elements)
+    {
+      strcpy(add_values_packet.op1.s16, get_value(Fadd_reg1, Fadd_element).s16);
+      strcpy(add_values_packet.op2.s16, get_value(Fadd_reg2, Fadd_element).s16);
+      sendVV_to_fadd = true;
+    }
+   else
+    {
+      VFadd_op = false;
+      unset_reservation(Fadd_reg1);
+      unset_reservation(Fadd_reg2);
+      reset_Fadd_busy = true;
+    }
+  }
+
+ if (sim_waiting(ev, from_CIP))
+  {
+    SIM_CAST(tr_packet, tr_pkt, ev);
+    my_state = V_REGS_BUSY;
+
+    if (tr_pkt.type == AtoVL)								// 0020  (Ak) VL
+     {
+//			 printf("V_REGS getting transmit to VL  instruction \n");
+       if (sim_waiting(ev, from_Aregs))
+        {
+	SIM_CAST (t_twentyfour_bit, value_pkt, ev);
+	VL = string_to_int(value_pkt.s6, 6) & 127;
+      }
+  }
+
+/*
+    if (tr_pkt.type == TtoS)								// 074 Transmit (Tjk) to Si
+      {
+	pkt_to_s.reg_no = tr_pkt.i;string_to_long
+	pkt_to_s.s = TRegs[ (tr_pkt.j << 3) | tr_pkt.k].t_hex;
+	send_to_Sregs = true;
+       }
+
+    if (tr_pkt.type == StoT)								// 075 Transmit  Si to (Tjk) 
+      {
+       if (sim_waiting(ev, from_Sregs))	
+	{
+	  SIM_CAST(t_sixtyfour_bit, value, ev);
+	  reg_no = (tr_pkt.j << 3) | tr_pkt.k;
+	  reg_value.t_hex = value;
+	  reg_value.t_int = string_to_long(value.s16, 16);
+	  TRegs.Update(reg_no, reg_value);
+	  set_Tregs_idle = true;
+	}
+      } 
+*/
+
+   if (tr_pkt.type == VtoS)								// 076 Transmit (Vj, element (Ak)) to Si
+      {
+       packet_to_s.reg_no = tr_pkt.i;
+       if (sim_waiting(ev, from_Aregs))	
+	{
+	 SIM_CAST(t_twentyfour_bit, value_pkt, ev);
+	 Vtr_element = string_to_long(value_pkt.s6, 6) & 127;
+	}
+ 	strcpy(packet_to_s.s.s16, get_value(tr_pkt.j, Vtr_element).s16);
+	send_to_Sregs = true;
+      }
+
+  if (tr_pkt.type == StoV)								// 077 Transmit  (Si) to Vi element (Ak) 
+      {
+       Vtr_reg_no = tr_pkt.i;
+       if (sim_waiting(ev, from_Aregs))	
+	{
+	 SIM_CAST(t_twentyfour_bit, value_pkt, ev);
+	 Vtr_element = string_to_long(value_pkt.s6, 6) & 127;
+	}
+       if (sim_waiting(ev, from_Sregs))	
+	{
+	  SIM_CAST(t_sixtyfour_bit, value, ev);
+	  Vtr_reg_value.v_hex = value;
+	  Vtr_reg_value.v_int = string_to_long(value.s16, 16);
+	}
+	write_value (Vtr_reg_no, Vtr_element, Vtr_reg_value);
+	unset_reservation(Vtr_reg_no);
+      } 
+
+  
+    if (tr_pkt.type == MtoV)								// 176 Block transfer Memory to Vregs
+     {
+//			 printf("V_REGS getting  MtoV%d  instruction \n", tr_pkt.i);
+	if ((VL > 64) || (VL == 0))
+	 {no_of_elements = 64;}
+	else
+	 {no_of_elements = VL;}
+	e = 0;
+	requests = 0;
+	replies = 0;
+       if (sim_waiting(ev, from_Aregs))	
+	{
+	  SIM_CAST(a_2values, op_values, ev);			// (A0), (Ak)
+//			 printf("V_REGS getting  A0 and Ak from Aregs, A0 = %s, Ak = %s \n", op_values.op1.s6, op_values.op2.s6);
+	  MV_reg_no = tr_pkt.i;
+	  set_reservation (MV_reg_no);
+	  for (i=0; i<6; i++)
+      	   {mem_address.s5[i] = op_values.op1.s6[i+1];}
+    	 mem_read_pkt.address = mem_address;
+	 read_Memory = true;
+	 read_block = true;
+	}
+     }
+
+    if (tr_pkt.type == VtoM)								// 177 Block transfer Vregs to Memory
+     {
+//			 printf("V_REGS getting  V%dtoM  instruction \n", tr_pkt.j);
+	if ((VL > 64) || (VL == 0))
+	 {no_of_elements = 64;}
+	else
+	 {no_of_elements = VL;}
+	e = 0;
+	requests = 0;
+       if (sim_waiting(ev, from_Aregs))	
+	{
+	  SIM_CAST(a_2values, op_values, ev);
+	  VM_reg_no = tr_pkt.j;
+	  set_reservation (VM_reg_no);
+	  for (i=0; i<6; i++)
+      	   {mem_address.s5[i] = op_values.op1.s6[i+1];}
+	  mem_write_pkt.address = mem_address;
+	  strcpy(mem_write_pkt.st.s16, get_value(VM_reg_no, requests).s16);
+	  write_to_Mem = true;
+           write_block = true;
+//		 printf("V_REGS getting  A0 and Ak from Aregs, A0 = %s, Ak = %s \n", op_values.op1.s6, op_values.op2.s6);
+	}
+     }
+  }
+
+
+/*
+ if (sim_waiting(ev, from_Tregs))
+   {
+    SIM_CAST(s_struct, s_result , ev);
+    reg_no = s_result.reg_no;
+    reg_value.busy = 0;
+    reg_value.v_hex = s_result.s;
+//		 printf("S_REGS getting result %s from Tregs unit \n", reg_value.v_hex.s16);
+    reg_value.v_int = string_to_long(s_result.s.s16, 16);
+    SRegs.Update( reg_no, reg_value);
+    unset_reservation(reg_no);
+   }
+*/
+
+ 
+ Vregs_Busy = reserved[0] | reserved[1] | reserved[2] | reserved[3] | reserved[4] | reserved[5] | reserved[6] | reserved[7];
+//		printf("V_registers: Vregs_Busy = %d \n", Vregs_Busy);
+ if (Vregs_Busy > 0)
+  {my_state = V_REGS_BUSY;}
+ else
+  {my_state = V_REGS_IDLE;}
+ if (my_state != old_state)
+  {dump_state();
+   old_state = my_state;}
+$phase1
+
+ if (end_read_block)
+  {
+    read_block = false;
+    myCIP->V_transfer = false;
+    end_read_block = false;
+  }
+
+ if (read_Memory)
+  {
+//		printf("V_registers: sending read packet to Memory, address = %s \n", mem_read_pkt.address.s5);
+  send_READ_PKT(to_memory, mem_read_pkt);
+   read_Memory = false;
+  }
+
+ if (write_to_Mem)
+  {
+   send_WRITE64_PKT(to_memory, mem_write_pkt);
+   write_to_Mem = false;
+  }
+ 
+ if (sendV_to_vshift)
+  {
+   send_S_1VALUE (to_v_shift, shf_value);
+   sendV_to_vshift = false;
+  }
+
+  if (sendV_to_vlogic)
+  {
+   send_S_1VALUE (to_v_logic, log_value);
+   sendV_to_vlogic = false;
+  }
+
+ if (sendVV_to_vlogic)
+  {
+   send_S_2VALUES (to_v_logic, log_values_packet);
+   sendVV_to_vlogic = false;
+  }
+
+if (sendM_to_vlogic)
+  {
+   send_M_1VALUE (to_v_logic, mv_packet);
+   sendM_to_vlogic = false;
+  }
+
+ if (sendVM_to_vlogic)
+  {
+   send_M_2VALUES (to_v_logic, m2v_packet);
+   sendVM_to_vlogic = false;
+  }
+
+  if (sendV_to_vadd)
+  {
+   send_S_1VALUE (to_v_add, add_value);
+   sendV_to_vadd = false;
+  }
+
+if (sendVV_to_vadd)
+  {
+   send_S_2VALUES (to_v_add, add_values_packet);
+   sendVV_to_vadd = false;
+  }
+
+  if (sendV_to_fmul)
+  {
+   send_S_1VALUE (to_f_mul, mul_value);
+   sendV_to_fmul = false;
+  }
+
+if (sendVV_to_fmul)
+  {
+   send_S_2VALUES (to_f_mul, mul_values_packet);
+   sendVV_to_fmul = false;
+  }
+
+ if (sendV_to_fadd)
+  {
+   send_S_1VALUE (to_f_add, add_value);
+   sendV_to_fadd = false;
+  }
+
+if (sendVV_to_fadd)
+  {
+   send_S_2VALUES (to_f_add, add_values_packet);
+   sendVV_to_fadd = false;
+  }
+
+if (send_to_Sregs)
+  {
+   send_S_PKT(to_s_regs, packet_to_s); 		
+   send_to_Sregs = false;
+  }
+
+if (reset_Vshift_busy)
+ {
+  myCIP->Vshift_busy = false;
+  reset_Vshift_busy = false;
+}
+
+if (reset_Vlogic_busy)
+ {
+  myCIP->Vlogic_busy = false;
+  reset_Vlogic_busy = false;
+}
+
+if (reset_Vadd_busy)
+ {
+  myCIP->Vadd_busy = false;
+  reset_Vadd_busy = false;
+}
+
+if (reset_Fmul_busy)
+ {
+  myCIP->Fmul_busy = false;
+  reset_Fmul_busy = false;
+}
+
+if (reset_Fadd_busy)
+ {
+  myCIP->Fadd_busy = false;
+  reset_Fadd_busy = false;
+}

@@ -1,0 +1,30 @@
+// Project	Cray 1
+// Entity	V Register
+// 		vector_reg.hase
+// Date 	Aug 2018
+
+$class_decls
+
+void setC();
+void setI();
+void setR();
+
+$class_defs
+
+void vector_reg::setI()
+{
+  my_state = IDLE;
+  dump_state();
+}
+
+void vector_reg::setC()
+{
+  my_state = BUSY_C;
+  dump_state();
+}
+
+void vector_reg::setR()
+{
+  my_state = BUSY_R;
+  dump_state();
+}
