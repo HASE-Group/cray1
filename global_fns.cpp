@@ -132,50 +132,72 @@ void s_complement(char* number)
 
 int string_to_int(char* str, int length)
 {
-  int sign = 0;
-  if (char_to_hex(str[0]) > 7)
+    size_t uSize = strlen( str );
+    if( uSize == 0 )
     {
-      a_complement(str);
-      sign = 1;
+        printf( "Warning - string_to_int called with string of length zero!\n" );
+        return 0;
     }
-  int i = 0;
-  int power = 1;
-  for (int j=length; j>0; j--)
+    if( uSize < length )
     {
-      i += char_to_hex(str[j-1])*power;
-      power = power*16;
+        printf( "Warning - string_to_int called with shorter string than expected!\n" );
+        length = (int)uSize;
     }
-  if (sign == 1)
+    int sign = 0;
+    if (char_to_hex(str[0]) > 7)
     {
-       i = i + 1; // Add 1 because hex complement result is 1's complement
-       i = -i;
-      a_complement(str); // restore str to original value
+        a_complement(str);
+        sign = 1;
     }
-  return i;
+    int i = 0;
+    int power = 1;
+    for (int j=length; j>0; j--)
+    {
+        i += char_to_hex(str[j-1])*power;
+        power = power*16;
+    }
+    if (sign == 1)
+    {
+        i = i + 1; // Add 1 because hex complement result is 1's complement
+        i = -i;
+        a_complement(str); // restore str to original value
+    }
+    return i;
 }
 
 long int string_to_long(char* str, int length)
 {
-  int sign = 0;
-  if (char_to_hex(str[0]) > 7)
+    size_t uSize = strlen( str );
+    if( uSize == 0 )
     {
-      s_complement(str);
-      sign = 1;
+        printf( "Warning - string_to_long called with string of length zero!\n" );
+        return 0;
     }
-  long int i = 0;
-  int power = 1;
-  for (int j=length; j>0; j--)
+    if( uSize < length )
     {
-      i += char_to_hex(str[j-1])*power;
-      power = power*16;
+        printf( "Warning - string_to_long called with shorter string than expected!\n" );
+        length = (int)uSize;
     }
-  if (sign == 1)
+    int sign = 0;
+    if (char_to_hex(str[0]) > 7)
     {
-      i = i + 1; // Add 1 because hex complement result is 1's complement
-      i = -i;
-      s_complement(str); // restore str to original value
+        s_complement(str);
+        sign = 1;
     }
-  return i;
+    long int i = 0;
+    int power = 1;
+    for (int j=length; j>0; j--)
+    {
+        i += char_to_hex(str[j-1])*power;
+        power = power*16;
+    }
+    if (sign == 1)
+    {
+        i = i + 1; // Add 1 because hex complement result is 1's complement
+        i = -i;
+        s_complement(str); // restore str to original value
+    }
+    return i;
 }
 
 char add_hex_digits(char a, char b, int& overflow)

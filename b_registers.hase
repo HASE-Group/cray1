@@ -9,199 +9,200 @@
 
 $class_decls
 
- cip * myCIP;
+cip * myCIP;
 
 // Variable Declarations
 
- bool Bregs_Busy, set_Bregs_idle;
- bool read_Memory, write_to_Mem, read_block, write_block, send_to_Aregs;
- bool  send_to_Preg;
+bool Bregs_Busy, set_Bregs_idle;
+bool read_Memory, write_to_Mem, read_block, write_block, send_to_Aregs;
+bool send_to_Preg;
 
- int i, blocksize, reg_no, requests, replies;
- a_2values op_values;
- t_b_reg reg_value;
- //a_instr_set a_inst; 
- b_struct pkt_to_a;
- b_struct b_pkt;
+int blocksize, reg_no, requests, replies;
+a_2values op_values;
+t_b_reg reg_value;
+//a_instr_set a_inst; 
+b_struct pkt_to_a;
+b_struct b_pkt;
 
- t_twenty_bit mem_address;
- t_mem_read mem_read_pkt;
- t_twentyfour_bit p_address, value, mem_value;
- t_mem_write24 mem_write_pkt;
+t_twenty_bit mem_address;
+t_mem_read mem_read_pkt;
+t_twentyfour_bit p_address, value, mem_value;
+t_mem_write24 mem_write_pkt;
 
- tr_packet tr_pkt;
- t_p_datapkt pkt_to_p;
+tr_packet tr_pkt;
+t_p_datapkt pkt_to_p;
 
 $class_defs
 
 $pre
 
- myCIP = (cip*)sim.get_entity( sim.get_entity_id( "CIP" ) );
- Bregs_Busy = false;
- set_Bregs_idle = false;
- read_Memory = false;
- write_to_Mem = false;
- read_block = false;
- write_block = false;
- send_to_Aregs = false;
- send_to_Preg = false;
- 
- requests = 0;
- replies = 0;
-pkt_to_p.op = 0;
+    myCIP = (cip*)sim.get_entity( sim.get_entity_id( "CIP" ) );
+    Bregs_Busy = false;
+    set_Bregs_idle = false;
+    read_Memory = false;
+    write_to_Mem = false;
+    read_block = false;
+    write_block = false;
+    send_to_Aregs = false;
+    send_to_Preg = false;
+    blocksize = 0;
+    requests = 0;
+    replies = 0;
+    pkt_to_p.op = 0;
 
-// reset register values to 0
+    // reset register values to 0
 
- strcpy(reg_value.b_hex.s6, "000000");
- reg_value.b_int = 0;
- for (int j =0; j<64; j++)
-  {
-   reg_no = j;
-   BRegs.Update( reg_no, reg_value);
-  }
+    strcpy(reg_value.b_hex.s6, "000000");
+    reg_value.b_int = 0;
+    for (int j =0; j<64; j++)
+    {
+        reg_no = j;
+        BRegs.Update( reg_no, reg_value);
+    }
 
- my_state = B_REGS_IDLE;
- dump_state();
+    my_state = B_REGS_IDLE;
+    dump_state();
 
 $phase0
 
 // predicates for use in sim_waiting tests
 
- sim_from_port from_CIP (from_cip);
- sim_from_port from_Memory (from_memory);
- sim_from_port from_Aregs (from_a_regs);
- sim_from_port from_Preg (from_p_reg);
+sim_from_port from_CIP (from_cip);
+sim_from_port from_Memory (from_memory);
+sim_from_port from_Aregs (from_a_regs);
+sim_from_port from_Preg (from_p_reg);
 
- if (Bregs_Busy)
-  {my_state = B_REGS_BUSY;}
- else
-  {my_state = B_REGS_IDLE;}
+if (Bregs_Busy)
+    my_state = B_REGS_BUSY;
+else
+    my_state = B_REGS_IDLE;
 
- if (sim_waiting(ev, from_Memory))
-  {
-   SIM_CAST(t_twentyfour_bit, mem_value, ev);
-   replies ++;
-   reg_value.b_hex = mem_value;
-   reg_value.b_int = string_to_int(mem_value.s6, 6);
-   BRegs.Update(reg_no, reg_value);
-   if (replies == blocksize)
-    {set_Bregs_idle = true;}
-   else
-    {reg_no = (reg_no + 1) & 63;}
-  }
+if (sim_waiting(ev, from_Memory))
+{
+    SIM_CAST(t_twentyfour_bit, mem_value, ev);
+    replies ++;
+    reg_value.b_hex = mem_value;
+    reg_value.b_int = string_to_int(mem_value.s6, 6);
+    BRegs.Update(reg_no, reg_value);
+    if (replies == blocksize)
+        set_Bregs_idle = true;
+    else
+        reg_no = (reg_no + 1) & 63;
+}
 
- if (read_block)
-  {
-   requests ++;
-   if (requests < blocksize)
+if (read_block)
+{
+    requests ++;
+    if (requests < blocksize)
     { 
-     increment_hex_string(mem_address.s5, 5);
-     mem_read_pkt.address = mem_address;
-     read_Memory = true;
+        increment_hex_string(mem_address.s5, 5);
+        mem_read_pkt.address = mem_address;
+        read_Memory = true;
     }
-   else
+    else
     {
-     read_block = false;
-     set_Bregs_idle = true;
-     myCIP->Block_transfer = false;
+        read_block = false;
+        set_Bregs_idle = true;
+        myCIP->Block_transfer = false;
     }
-  }
+}
 
 if (write_block)
-  {
-   requests ++;
-   increment_hex_string(mem_address.s5, 5);
-   mem_write_pkt.address = mem_address;
-   reg_no = (reg_no + 1) & 63;
-   mem_write_pkt.ab = BRegs[reg_no].b_hex;
-   if (requests < blocksize)
-    { write_to_Mem = true;}
-   else
-    {write_block = false;
-     set_Bregs_idle = true;
-     myCIP->Block_transfer = false;
+{
+    requests ++;
+    increment_hex_string(mem_address.s5, 5);
+    mem_write_pkt.address = mem_address;
+    reg_no = (reg_no + 1) & 63;
+    mem_write_pkt.ab = BRegs[reg_no].b_hex;
+    if (requests < blocksize)
+        write_to_Mem = true;
+    else
+    {
+        write_block = false;
+        set_Bregs_idle = true;
+        myCIP->Block_transfer = false;
     }
-  }
+}
 
- if (sim_waiting(ev, from_CIP))
-  {
+if (sim_waiting(ev, from_CIP))
+{
     SIM_CAST(tr_packet, tr_pkt, ev);
-				 printf("B_REGS getting transmit instruction \n");
-     my_state = B_REGS_BUSY;
+    printf("B_REGS getting transmit instruction \n");
+    my_state = B_REGS_BUSY;
 
-     if (tr_pkt.type == BtoP)							// 005 Branch to Bjk (send (Bjk) to P)
-      {
-	p_address = BRegs[ (tr_pkt.j << 3) | tr_pkt.k].b_hex;
-	send_to_Preg = true;
-      }
+    if (tr_pkt.type == BtoP)							// 005 Branch to Bjk (send (Bjk) to P)
+    {
+        p_address = BRegs[ (tr_pkt.j << 3) | tr_pkt.k].b_hex;
+        send_to_Preg = true;
+    }
 
-     if (tr_pkt.type == PtoB)							// 007 Transmit P to B00
-      {
-       if (sim_waiting(ev, from_Preg))	
-	{
-	  SIM_CAST(t_twentyfour_bit, value, ev);
- 	  reg_no = (tr_pkt.j << 3) | tr_pkt.k;
-	  reg_value.b_hex = value;
-	  reg_value.b_int = string_to_int(value.s6, 6);
-	  BRegs.Update(reg_no, reg_value);
-	  set_Bregs_idle = true;
-	}
-       }
+    if (tr_pkt.type == PtoB)							// 007 Transmit P to B00
+    {
+        if (sim_waiting(ev, from_Preg))	
+        {
+            SIM_CAST(t_twentyfour_bit, value, ev);
+            reg_no = (tr_pkt.j << 3) | tr_pkt.k;
+            reg_value.b_hex = value;
+            reg_value.b_int = string_to_int(value.s6, 6);
+            BRegs.Update(reg_no, reg_value);
+            set_Bregs_idle = true;
+        }
+    }
 
-   if (tr_pkt.type == BtoA)								// 024 Transmit (Bjk) to Ai
-      {
-	pkt_to_a.reg_no = tr_pkt.i;
-	pkt_to_a.b = BRegs[ (tr_pkt.j << 3) | tr_pkt.k].b_hex;
-	send_to_Aregs = true;
-       }
+    if (tr_pkt.type == BtoA)								// 024 Transmit (Bjk) to Ai
+    {
+        pkt_to_a.reg_no = tr_pkt.i;
+        pkt_to_a.b = BRegs[ (tr_pkt.j << 3) | tr_pkt.k].b_hex;
+        send_to_Aregs = true;
+    }
 
     if (tr_pkt.type == AtoB)								// 025 Transmit  Ai to (Bjk) 
-      {
-       if (sim_waiting(ev, from_Aregs))	
-	{
-	  SIM_CAST(t_twentyfour_bit, value, ev);
- 	  reg_no = (tr_pkt.j << 3) | tr_pkt.k;
-	  reg_value.b_hex = value;
-	  reg_value.b_int = string_to_int(value.s6, 6);
-	  BRegs.Update(reg_no, reg_value);
-	  set_Bregs_idle = true;
-	}
-      } 
+    {
+        if (sim_waiting(ev, from_Aregs))	
+        {
+            SIM_CAST(t_twentyfour_bit, value, ev);
+            reg_no = (tr_pkt.j << 3) | tr_pkt.k;
+            reg_value.b_hex = value;
+            reg_value.b_int = string_to_int(value.s6, 6);
+            BRegs.Update(reg_no, reg_value);
+            set_Bregs_idle = true;
+        }
+    } 
 
     if (tr_pkt.type == MtoB)								// 034 Block transfer Memory to Bregs
-     {
-       if (sim_waiting(ev, from_Aregs))	
-	{
-	  SIM_CAST(a_2values, op_values, ev);
-	  blocksize = string_to_int(op_values.op1.s6, 6) & 63;
-	  for (i=0; i<6; i++)
-      	   {mem_address.s5[i] = op_values.op2.s6[i+1];}
-    	 mem_read_pkt.address = mem_address;
-	 reg_no = (tr_pkt.j << 3) | tr_pkt.k;
-	 read_Memory = true;
-	 requests = 0;
-	 read_block = true;
-	}
-     }
+    {
+        if (sim_waiting(ev, from_Aregs))	
+        {
+            SIM_CAST(a_2values, op_values, ev);
+            blocksize = string_to_int(op_values.op1.s6, 6) & 63;
+            for (int i=0; i<6; i++)
+                mem_address.s5[i] = op_values.op2.s6[i+1];
+            mem_read_pkt.address = mem_address;
+            reg_no = (tr_pkt.j << 3) | tr_pkt.k;
+            read_Memory = true;
+            requests = 0;
+            read_block = true;
+        }
+    }
 
     if (tr_pkt.type == BtoM)								// 035 Block transfer Bregs to Memory
-     {
-       if (sim_waiting(ev, from_Aregs))	
-	{
-	  SIM_CAST(a_2values, op_values, ev);
-	  blocksize = string_to_int(op_values.op1.s6, 6) & 63;
-	  reg_no = (tr_pkt.j << 3) | tr_pkt.k;
-	  for (i=0; i<6; i++)
-      	   {mem_address.s5[i] = op_values.op2.s6[i+1];}
-	  mem_write_pkt.address = mem_address;
-	  mem_write_pkt.ab = BRegs[reg_no].b_hex;
-	  write_to_Mem = true;
-	  requests = 0;
-          write_block = true;
-printf("B_registers:  instruction is Bwrite_to_m, blocksize = %d, reg_no = %d \n", blocksize, reg_no);
-	}
-     }
-  }
+    {
+        if (sim_waiting(ev, from_Aregs))	
+        {
+            SIM_CAST(a_2values, op_values, ev);
+            blocksize = string_to_int(op_values.op1.s6, 6) & 63;
+            reg_no = (tr_pkt.j << 3) | tr_pkt.k;
+            for (int i=0; i<6; i++)
+                mem_address.s5[i] = op_values.op2.s6[i+1];
+            mem_write_pkt.address = mem_address;
+            mem_write_pkt.ab = BRegs[reg_no].b_hex;
+            write_to_Mem = true;
+            requests = 0;
+            write_block = true;
+            printf("B_registers:  instruction is Bwrite_to_m, blocksize = %d, reg_no = %d \n", blocksize, reg_no);
+        }
+    }
+}
 
 /*	case store_to_p: create_22bit( BRegs[a_inst.ps_field.jk].b_hex.s6, pkt_to_p.a.s6 );
 			//copying a 24-bit to a 22-bit
@@ -215,39 +216,39 @@ dump_state();
 
 $phase1
 
- if (set_Bregs_idle)
-  {
-   Bregs_Busy = false;
-   set_Bregs_idle = false;
-  }
+if (set_Bregs_idle)
+{
+    Bregs_Busy = false;
+    set_Bregs_idle = false;
+}
 
- if (send_to_Preg)
-  {
-	send_BR_ADDRESS (to_p_reg,  p_address);
-	send_to_Preg = false;
-	my_state = B_REGS_IDLE;
-	Bregs_Busy = false;
-  }
+if (send_to_Preg)
+{
+    send_BR_ADDRESS (to_p_reg,  p_address);
+    send_to_Preg = false;
+    my_state = B_REGS_IDLE;
+    Bregs_Busy = false;
+}
 
- if (send_to_Aregs)
-  {
-	printf("B_Registers: sending  to A_regs, reg_no = %d, value= %s \n", pkt_to_a.reg_no,  pkt_to_a.b.s6);
-	send_B_PKT( to_a_regs, pkt_to_a);
-	send_to_Aregs = false;
-	my_state = B_REGS_IDLE;
-	Bregs_Busy = false;
-  }
+if (send_to_Aregs)
+{
+    printf("B_Registers: sending  to A_regs, reg_no = %d, value= %s \n", pkt_to_a.reg_no,  pkt_to_a.b.s6);
+    send_B_PKT( to_a_regs, pkt_to_a);
+    send_to_Aregs = false;
+    my_state = B_REGS_IDLE;
+    Bregs_Busy = false;
+}
 
 if (read_Memory)
-  {
-printf("B_registers: sending read packet to Memory, address = %s \n", mem_read_pkt.address.s5);
-   send_READ_PKT(to_memory, mem_read_pkt);
-   read_Memory = false;
-  }
- 
- if (write_to_Mem)
-  {
-printf("B_registers: sending write packet to Memory, reg_no = %d, address = %s , value = %s \n", reg_no, mem_write_pkt.address.s5, mem_write_pkt.ab.s6);
-   send_WRITE24_PKT(to_memory, mem_write_pkt);
-   write_to_Mem = false;
-  }
+{
+    printf("B_registers: sending read packet to Memory, address = %s \n", mem_read_pkt.address.s5);
+    send_READ_PKT(to_memory, mem_read_pkt);
+    read_Memory = false;
+}
+
+if (write_to_Mem)
+{
+    printf("B_registers: sending write packet to Memory, reg_no = %d, address = %s , value = %s \n", reg_no, mem_write_pkt.address.s5, mem_write_pkt.ab.s6);
+    send_WRITE24_PKT(to_memory, mem_write_pkt);
+    write_to_Mem = false;
+}

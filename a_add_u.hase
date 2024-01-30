@@ -1,48 +1,48 @@
-// Project		Cray 1
-// Entity		Address Add Unit
-// File		 a_add.hase
-// Date		Oct 2017
+// Project Cray 1
+// Entity  Address Add Unit
+// File    a_add.hase
+// Date    Oct 2017
 //
 // Performs add (Integer sum) and sub (Integer difference)
-//  
 
 $class_decls
 
 // Variable Declarations
 
- bool add_busy0, add_busy1;
- int i, overflow;
- a_2values op_values;
- fn_packet fn_pkt;
- a_struct add_result[2];		// i = dest_reg, a = 24-bit result
+bool add_busy0, add_busy1;
+int overflow;
+a_2values op_values;
+fn_packet fn_pkt;
+a_struct add_result[2];            // i = dest_reg, a = 24-bit result
 
- void perform_add();
- void perform_sub();
+void perform_add();
+void perform_sub();
 
 $class_defs
 
 void a_add_u::perform_add()
 {
-   overflow = 0;
-   for (i=5; i>=0; i--)
-	add_result[0].a.s6[i] = add_hex_digits( op_values.op1.s6[i], op_values.op2.s6[i], overflow);
+    overflow = 0;
+    for (int i=5; i>=0; i--)
+        add_result[0].a.s6[i] = add_hex_digits( op_values.op1.s6[i], op_values.op2.s6[i], overflow);
 }
 
 void a_add_u::perform_sub()
 {
-   overflow = 1;				// Because a_complement result is 1's complement
-   a_complement( op_values.op2.s6);
-
-   for (int i=5; i>=0; i--)
-	add_result[0].a.s6[i] = add_hex_digits( op_values.op1.s6[i], op_values.op2.s6[i], overflow);
+    overflow = 1;                    // Because a_complement result is 1's complement
+    a_complement( op_values.op2.s6);
+    
+    for (int i=5; i>=0; i--)
+        add_result[0].a.s6[i] = add_hex_digits( op_values.op1.s6[i], op_values.op2.s6[i], overflow);
 }
 
 $pre
 
- add_busy0 = false;
- add_busy1 = false;
- my_state = IDLE;
- dump_state();
+add_busy0 = false;
+add_busy1 = false;
+overflow = 0;
+my_state = IDLE;
+dump_state();
 
 $phase0
 
@@ -50,51 +50,49 @@ $phase0
 
 // predicates for use in sim_waiting tests
 
- sim_from_port from_A_REGS(from_a_regs);
- sim_from_port from_CIP(from_cip);
+sim_from_port from_A_REGS(from_a_regs);
+sim_from_port from_CIP(from_cip);
 
- add_busy1 = add_busy0;
- add_result[1] = add_result[0];
- add_busy0 = false;
+add_busy1 = add_busy0;
+add_result[1] = add_result[0];
+add_busy0 = false;
 if (sim_waiting(ev, from_CIP))
-  {
-			 printf("A_ADD_U getting instruction from CIP\n");
-   SIM_CAST(fn_packet, fn_pkt, ev);
-   add_busy0 = true;
-  }
+{
+    printf("A_ADD_U getting instruction from CIP\n");
+    SIM_CAST(fn_packet, fn_pkt, ev);
+    add_busy0 = true;
+}
 
- if (add_busy0 || add_busy1)
-  {my_state = BUSY;}
- else
-  {my_state = IDLE; }
+if (add_busy0 || add_busy1)
+    my_state = BUSY;
+else
+    my_state = IDLE;
 
 if (sim_waiting(ev, from_A_REGS))
-  {
+{
     SIM_CAST(a_2values, op_values, ev);
-printf("A_ADD_U getting operands \n");
-   switch (fn_pkt.op[0] )
-     {
-	case '+':
-	   perform_add();
-	   break;
-	case '-':
-	   perform_sub();
-	   break;
-     }
+    printf("A_ADD_U getting operands \n");
+    switch (fn_pkt.op[0] )
+    {
+    case '+':
+        perform_add();
+        break;
+    case '-':
+        perform_sub();
+        break;
+    }
     add_result[0].reg_no = fn_pkt.reg_no;
-printf("A_ADD_U result = %s \n", add_result[0].a.s6);
-  }
-  dump_state();
+    printf("A_ADD_U result = %s \n", add_result[0].a.s6);
+}
+dump_state();
 
 $phase1
 
 // if add_busy1 is set, send output to A regs
 
- if (add_busy1)
-  {
+if (add_busy1)
+{
     printf("A_ADD_U: sending add result = %s \n", add_result[1].a.s6);
     send_A_PKT( to_a_regs, add_result[1] );
     add_busy1 = false;
-    }
-
-
+}

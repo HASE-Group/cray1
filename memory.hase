@@ -29,7 +29,7 @@ t_registers * myTregs;
 
 int instruction;
 
-int any_req;
+int any_req;                                                                                                                                                                                                                                
 
 t_mem_read read_request;
 t_mem_request MemReqBuff[4];

@@ -1,6 +1,6 @@
 // Project	Cray 1
 // Entity	V Registers
-// 		v_registers.hase
+// 			v_registers.hase
 // Date 	Jun 2018
 
 /* PARAMS for this entity are as follows:
@@ -20,16 +20,16 @@
 
 $class_decls
 
- cip * myCIP;
- v_mask * myVM;
- vector_reg * myVReg0;
- vector_reg * myVReg1;
- vector_reg * myVReg2;
- vector_reg * myVReg3;
- vector_reg * myVReg4;
- vector_reg * myVReg5;
- vector_reg * myVReg6;
- vector_reg * myVReg7;
+cip* myCIP;
+v_mask* myVM;
+vector_reg* myVReg0;
+vector_reg* myVReg1;
+vector_reg* myVReg2;
+vector_reg* myVReg3;
+vector_reg* myVReg4;
+vector_reg* myVReg5;
+vector_reg* myVReg6;
+vector_reg* myVReg7;
 
 // Variable Declarations
 
@@ -44,8 +44,9 @@ $class_decls
  bool reset_Vshift_busy, reset_Vlogic_busy, reset_Vadd_busy, reset_Fmul_busy, reset_Fadd_busy;
 
  int old_state;
- int e, i, j, k , element;
+ int element;
  int no_of_elements;
+ int j; // DD: should this really be here?
 int reg_no, test_result;
  int MV_reg_no, VM_reg_no, requests, replies;
  int Vtr_reg_no, Vtr_element;
@@ -59,7 +60,6 @@ int reg_no, test_result;
  int Vregs_Busy;
  int reserved[8];
  int chain_slot[8];
-
 int nonzero(int i); //returns 0 if Si=0, 1 otherwise
 int negative(int i);  //returns 0 if Si>=0, 1 otherwise
 
@@ -316,7 +316,7 @@ void v_registers::write_value (int reg_no, int element, t_v_element reg_value)
 void v_registers::form_next_address()
 {
    overflow = 0;
-   for (i=4; i>=0; i--)
+   for (int i=4; i>=0; i--)
 	{mem_address.s5[i] = add_hex_digits( mem_address.s5[i], op_values.op2.s6[i+1], overflow);}
 }
 
@@ -536,9 +536,14 @@ strcpy(floatsignbit.s16, "8000000000000000");
  reset_Fmul_busy = false;
  reset_Fadd_busy = false;
 
-// reset served and chain slot bits and reset register values to 0
+ MV_reg_no = 0;
+ VM_reg_no = 0;
+ requests = 0;
+ replies = 0;
 
- for (i=0; i<8; i++)
+ // reset served and chain slot bits and reset register values to 0
+
+ for (int i=0; i<8; i++)
   {
     reserved[i] = 0;
     chain_slot[i] = 0;
@@ -554,7 +559,7 @@ strcpy(floatsignbit.s16, "8000000000000000");
 
  strcpy(reg_value.v_hex.s16, "0000000000000000");
  reg_value.v_int = 0;
- for (e=0; e<64; e++)
+ for (int e=0; e<64; e++)
   {
    myVReg0->vector_register.Update( e, reg_value);
    myVReg1->vector_register.Update( e, reg_value);
@@ -1004,7 +1009,7 @@ if (VFadd_op)
 	 {no_of_elements = 64;}
 	else
 	 {no_of_elements = VL;}
-	e = 0;
+	//e = 0;
 	requests = 0;
 	replies = 0;
        if (sim_waiting(ev, from_Aregs))	
@@ -1013,7 +1018,7 @@ if (VFadd_op)
 //			 printf("V_REGS getting  A0 and Ak from Aregs, A0 = %s, Ak = %s \n", op_values.op1.s6, op_values.op2.s6);
 	  MV_reg_no = tr_pkt.i;
 	  set_reservation (MV_reg_no);
-	  for (i=0; i<6; i++)
+	  for (int i=0; i<6; i++)
       	   {mem_address.s5[i] = op_values.op1.s6[i+1];}
     	 mem_read_pkt.address = mem_address;
 	 read_Memory = true;
@@ -1028,14 +1033,14 @@ if (VFadd_op)
 	 {no_of_elements = 64;}
 	else
 	 {no_of_elements = VL;}
-	e = 0;
+	//e = 0;
 	requests = 0;
        if (sim_waiting(ev, from_Aregs))	
 	{
 	  SIM_CAST(a_2values, op_values, ev);
 	  VM_reg_no = tr_pkt.j;
 	  set_reservation (VM_reg_no);
-	  for (i=0; i<6; i++)
+	  for (int i=0; i<6; i++)
       	   {mem_address.s5[i] = op_values.op1.s6[i+1];}
 	  mem_write_pkt.address = mem_address;
 	  strcpy(mem_write_pkt.st.s16, get_value(VM_reg_no, requests).s16);
