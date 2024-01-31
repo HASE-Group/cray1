@@ -46,8 +46,7 @@ vector_reg* myVReg7;
  int old_state;
  int element;
  int no_of_elements;
- int j; // DD: should this really be here?
-int reg_no, test_result;
+ int test_result;
  int MV_reg_no, VM_reg_no, requests, replies;
  int Vtr_reg_no, Vtr_element;
  int Vshf_reg_no, Vshf_element, Vshf_reg_i, Vshf_results;
@@ -368,7 +367,7 @@ void v_registers::sendSM_to_Vlogic (int k)
 	 {no_of_elements = 64;}
 	else
 	 {no_of_elements = VL;}
-	Vlog_reg1 = j;
+	Vlog_reg1 = 0; // DAWD: Was j, but no j passed.
 	Vlog_reg2 = k;
 	Vlog_element = 0;
 	Vlog_results = 0;

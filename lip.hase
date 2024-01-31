@@ -12,7 +12,6 @@ $class_decls
 // Variable Declarations
 
  bool parcel_taken;
- int i;
  t_sixteen_bit inst_parcel;
 
 $class_defs
@@ -36,7 +35,7 @@ sim_from_port from_IB(from_i_buffers);
     SIM_CAST(t_sixteen_bit, inst_parcel, ev);
 //	printf("LIP: getting instruction parcel = %s from IBuffers \n", inst_parcel.s4);
     my_state = LIP_BUSY;
-     for ( i =0; i<4; i++)
+     for ( int i =0; i<4; i++)
 	{value[i]=inst_parcel.s4[i];}
      dump_state_i();
 }

@@ -16,7 +16,7 @@ $class_decls
  int old_state;
  int Sregs_Busy;
  int reserved[8];
- int i, reg_no, m_reg_no,  test_result;
+ int reg_no, m_reg_no,  test_result;
 
 int nonzero(int i); //returns 0 if Si=0, 1 otherwise
 int negative(int i);  //returns 0 if Si>=0, 1 otherwise
@@ -141,7 +141,7 @@ void s_registers::send_to_Sshift(int i)
 	send_S_1VALUE( to_s_shift, SRegs[i].s_hex);
 }
 
-void s_registers::send_to_Slogic(int i, int j, int k)
+void s_registers::send_to_Slogic(int /*i*/, int j, int k)
 {
         if (j == 0)							//	if j = 0, (S0) = 0
 	   {values_packet.op1 = zero;}
@@ -154,7 +154,7 @@ void s_registers::send_to_Slogic(int i, int j, int k)
 	send_S_2VALUES ( to_s_logic, values_packet);
 }
 
-void s_registers::send_to_Sadd(int i, int j, int k)							// 060, 061
+void s_registers::send_to_Sadd(int /*i*/, int j, int k)							// 060, 061
 {
         if (j == 0)							//	if j = 0, (S0) = 0
 	   {values_packet.op1 = zero;}
@@ -276,7 +276,7 @@ $phase0
  if (sim_waiting(ev, from_Aregs))									// 13h
       {
 	SIM_CAST (rs_packet, rs_pkt, ev); 
-	for (i=4; i>0; i--)
+	for (int i=4; i>0; i--)
 	{mem_address.s5[i] = rs_pkt.a.s6[i+1];}
 	mem_write_pkt.address = mem_address;
 	mem_write_pkt.st = SRegs[rs_pkt.i_reg].s_hex;

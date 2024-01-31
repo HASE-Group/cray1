@@ -12,7 +12,7 @@ $class_decls
 // Variable Declarations
 
 bool send_to_I;
-int i, increment;
+int increment;
 
 t_twentytwo_bit p_message;
 t_twentyfour_bit br_address, b_message;
@@ -39,7 +39,7 @@ void p_register::create_24bit( char* str22, char* str24)
 
 void p_register::return_jump()
 {
-    for ( i = 0; i < 6 ; i++)
+    for (int i = 0; i < 6 ; i++)
         {p_message.s6[i]=P[i];}
     p_message.s6[6]='\0';
     send_ADDRESS(to_b_regs, p_message);
@@ -122,7 +122,7 @@ $phase1
 
 if (send_to_I)     // send contents of P to instruction buffers
 {
-    for ( i = 0; i < 6 ; i++)
+    for (int i = 0; i < 6 ; i++)
         p_message.s6[i]=P[i];
     p_message.s6[6]='\0';
     send_ADDRESS(to_i_buffers, p_message);

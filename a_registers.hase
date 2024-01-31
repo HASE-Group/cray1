@@ -24,7 +24,7 @@ int old_state;
 int Aregs_Busy;
 int reserved[8];
 int reg1, reg2;
-int i, j, reg_no, m_reg_no, overflow, sign_bit, test_result;
+int reg_no, m_reg_no, overflow, sign_bit, test_result;
 int blocksize, index;
 
 a_struct add_result;
@@ -173,7 +173,7 @@ void a_registers::send_to_Vshift(int k)
     send_A_1VALUE (to_v_shift, value);
 }
 
-void a_registers::send_to_Aadd(int i, int j, int k)
+void a_registers::send_to_Aadd(int /*i*/, int j, int k)
 {
     if (j == 0)                         //  if j = 0, (Aj) = 0
         values_packet.op1 = zero;
@@ -187,7 +187,7 @@ void a_registers::send_to_Aadd(int i, int j, int k)
     //printf("Aregs sending packet to A_ADD_U \n");
 }
 
-void a_registers::send_to_Amul(int i, int j, int k)
+void a_registers::send_to_Amul(int /*i*/, int j, int k)
 {
     if (j == 0)                         //  if j = 0, (A0) = 0
         values_packet.op1 = zero;
@@ -249,7 +249,7 @@ strcpy(one.s6, "000001");
 
 // reset reservation bits and reset register values to 0
 
-for (i=0; i<8; i++)
+for (int i=0; i<8; i++)
     reserved[i] = 0;
 strcpy(reg_value.a_hex.s6, "000000");
 reg_value.a_int = 0;
@@ -298,7 +298,7 @@ if (sim_waiting(ev, from_CIP))
         if (rs_pkt.op == 10)                            // Read from ((Ah) + jkm) to Ai 
         {
             overflow = 0;
-            for (i=4; i>=0; i--)
+            for (int i=4; i>=0; i--)
                 mem_address.s5[i] = add_hex_digits( ARegs[rs_pkt.h_reg].a_hex.s6[i+1], rs_pkt.a.s6[i+1], overflow);
             mem_read_pkt.address = mem_address;
             m_reg_no = rs_pkt.i_reg;
@@ -308,7 +308,7 @@ if (sim_waiting(ev, from_CIP))
         if (rs_pkt.op == 11)                            // Store (Ai) to (Ah) + jkm  
         {
             overflow = 0;
-            for (i=4; i>=0; i--)
+            for (int i=4; i>=0; i--)
                 mem_address.s5[i] = add_hex_digits( ARegs[rs_pkt.h_reg].a_hex.s6[i+1], rs_pkt.a.s6[i+1], overflow);
             mem_write_pkt.address = mem_address;
             mem_write_pkt.ab = ARegs[rs_pkt.i_reg].a_hex;
@@ -318,7 +318,7 @@ if (sim_waiting(ev, from_CIP))
         if (rs_pkt.op == 12)                           // Read from ((Ah + jkm) to Si 
         {
             overflow = 0;
-            for (i=4; i>=0; i--)
+            for (int i=4; i>=0; i--)
                 mem_address.s5[i] = add_hex_digits( ARegs[rs_pkt.h_reg].a_hex.s6[i+1], rs_pkt.a.s6[i+1], overflow);
             mem_read_pkt.address = mem_address;
             //    m_reg_no = rs_pkt.i_reg;      - destination register is an S register so don't need m_reg_no here
@@ -327,9 +327,9 @@ if (sim_waiting(ev, from_CIP))
         if (rs_pkt.op == 13)                            // Store (Si) to (Ah) + jkm  
         {
             overflow = 0;
-            for (i=4; i>=0; i--)
+            for (int i=4; i>=0; i--)
                 mem_address.s5[i] = add_hex_digits( ARegs[rs_pkt.h_reg].a_hex.s6[i+1], rs_pkt.a.s6[i+1], overflow);
-            for (i=4; i>0; i--)
+            for (int i=4; i>0; i--)
                 rs_pkt.a.s6[i+1] = mem_address.s5[i];
             send_to_Sregs = true;
         }

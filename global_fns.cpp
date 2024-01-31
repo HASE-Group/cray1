@@ -22,8 +22,8 @@ int char_to_hex(char c)
 char hex_to_char(int i)
 {
   char c;
-  if ( i < 10) c = i + '0';
-  else c = (i - 10) + 'A' ;
+  if ( i < 10) c = (char)i + '0';
+  else c = ((char)i - 10) + 'A' ;
   return c;
 }
 
@@ -111,22 +111,20 @@ char hex_complement(char c)
 //takes a 24-bit number in hexadecimal form and finds its complement
 void a_complement(char* number)
 {
-  int temp, value;
-  for (int i =0; i<6; i++)    // 6 digits
+    for (int i =0; i<6; i++)    // 6 digits
     {
-      value = number[i];
-      number[i]= hex_complement(value);
-    } 
+        char value = number[i];
+        number[i] = hex_complement(value);
+    }
 }
 
 //takes a 64-bit number in hexadecimal form and finds its complement
 void s_complement(char* number)
 {
-  int temp, value, new_value;
-  for (int i =0; i<16; i++)      //16 digits
+    for (int i =0; i<16; i++)      //16 digits
     {
-      value = number[i];
-      number[i]= hex_complement(value);
+        char value = number[i];
+        number[i]= hex_complement(value);
     } 
 }
 
@@ -778,7 +776,6 @@ void mult2_float(char* op1, char* op2, char* ans)
 void create_float(int sign, long int coeff, int exp, char* ans)
 {
   long int two_to_the_48 = 16*16*16*16;
-  int temp;
   strcpy(ans, "0000000000000000");
 
    exp = exp + (32768*sign) + 16384; //create biassed exponent

@@ -11,7 +11,7 @@ $class_decls
 // Variable Declarations
 
  bool add_busy0, add_busy1, add_busy2;
- int i, overflow;
+ int overflow;
   s_2values op_values;
  fn_packet fn_pkt;
  s_struct add_result[3];		// i = dest_reg, s = 64-bit result
@@ -24,7 +24,7 @@ $class_defs
 void s_add_u::perform_add()
 {
    overflow = 0;
-   for (i=15; i>=0; i--)
+   for (int i=15; i>=0; i--)
 	add_result[0].s.s16[i] = add_hex_digits (op_values.op1.s16[i], op_values.op2.s16[i], overflow);
 }
 

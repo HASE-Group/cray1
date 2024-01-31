@@ -11,7 +11,7 @@ $class_decls
 // Variable Declarations
 
  bool add_busy0, add_busy1, add_busy2;
- int i, overflow;
+ int overflow;
  fn_packet fn_pkt;
  t_sixtyfour_bit operand1, operand2;
  s_2values op_values;
@@ -26,7 +26,7 @@ $class_defs
 void v_add_u::perform_add()
 {
    overflow = 0;
-   for (i=15; i>=0; i--)
+   for (int i=15; i>=0; i--)
 	{add_result[0].s.s16[i] = add_hex_digits (operand1.s16[i], operand2.s16[i], overflow);}
 //printf("V_ADD_U: Add operation - operand1 = %s,  operand2 = %s,  result = %s \n", operand1.s16, operand2.s16, add_result[0].s.s16);
 }
@@ -45,7 +45,7 @@ $pre
  add_busy0 = false;
  add_busy1 = false;
  add_busy2 = false;
- for (i=0; i<3; i++)
+ for (int i=0; i<3; i++)
    {strcpy (add_result[i].s.s16,  "0000000000000000");}
  my_state = IDLE;
  dump_state();
