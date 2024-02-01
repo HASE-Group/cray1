@@ -854,7 +854,7 @@ void String_to_double(char* str, double d)
 void Double_to_string(double f, char* ans)
 {
   int sign = 0;
-  int coeff[48];
+  int coeff[49];
   long int exp =0, maxexp;
   double sixteen_12 = 16.0*16.0*16.0*16.0*16.0*16.0*16.0*16.0
                      *16.0*16.0*16.0*16.0;

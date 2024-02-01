@@ -52,7 +52,7 @@ bool sendSV_to_Fadd, sendVV_to_Fadd, sendSV_to_Fmul, sendVV_to_Fmul;
 int old_state;
 int latency, cycle;
 int A_entry[7];
-int S_entry[13];
+int S_entry[15];
 int V_entry[13];
 
 t_instrn instrn;
