@@ -9,202 +9,219 @@
 
 $class_decls
 
- cip * myCIP;
+cip* myCIP;
 
 // Variable Declarations
 
- bool Tregs_Busy, set_Tregs_idle;
- bool read_Memory, write_to_Mem, read_block, write_block, send_to_Sregs;
+bool Tregs_Busy, set_Tregs_idle;
+bool read_Memory, write_to_Mem, read_block, write_block, send_to_Sregs;
 
- int i, blocksize, reg_no, requests, replies;
- a_2values op_values;
- t_t_reg reg_value;
- //a_instr_set a_inst; 
- s_struct t_pkt, pkt_to_s;
- t_twenty_bit mem_address;
- t_mem_read mem_read_pkt;
- t_sixtyfour_bit value, mem_value;
- t_mem_write64 mem_write_pkt;
- tr_packet tr_pkt;
+int i, blocksize, reg_no, requests, replies;
+a_2values op_values;
+t_t_reg reg_value;
+//a_instr_set a_inst; 
+s_struct t_pkt, pkt_to_s;
+t_twenty_bit mem_address;
+t_mem_read mem_read_pkt;
+t_sixtyfour_bit value, mem_value;
+t_mem_write64 mem_write_pkt;
+tr_packet tr_pkt;
 
 $class_defs
 
 $pre
 
- myCIP = (cip*)sim.get_entity( sim.get_entity_id( "CIP" ) );
- Tregs_Busy = false;
- set_Tregs_idle = false;
- read_Memory = false;
- write_to_Mem = false;
- read_block = false;
- write_block = false;
- send_to_Sregs = false;
+myCIP = (cip*)sim.get_entity( sim.get_entity_id( "CIP" ) );
+Tregs_Busy = false;
+set_Tregs_idle = false;
+read_Memory = false;
+write_to_Mem = false;
+read_block = false;
+write_block = false;
+send_to_Sregs = false;
 
- requests = 0;
- replies = 0;
+requests = 0;
+replies = 0;
 
 // reset register values to 0
 
- strcpy(reg_value.t_hex.s16, "0000000000000000");
- reg_value.t_int = 0;
- for (reg_no=0; reg_no<64; reg_no++)
-  { TRegs.Update( reg_no, reg_value); }
+strcpy( reg_value.t_hex.s16, "0000000000000000" );
+reg_value.t_int = 0;
+for (reg_no = 0; reg_no < 64; reg_no++)
+{
+    TRegs.Update( reg_no, reg_value );
+}
 
- my_state = T_REGS_IDLE;
- dump_state();
+my_state = T_REGS_IDLE;
+dump_state();
 
 $phase0
 
 // predicates for use in sim_waiting tests
 
- sim_from_port from_CIP (from_cip);
- sim_from_port from_Memory (from_memory);
- sim_from_port from_Aregs (from_a_regs);
- sim_from_port from_Sregs (from_s_regs);
+sim_from_port from_CIP( from_cip );
+sim_from_port from_Memory( from_memory );
+sim_from_port from_Aregs( from_a_regs );
+sim_from_port from_Sregs( from_s_regs );
 
- if (Tregs_Busy)
-  {my_state = T_REGS_BUSY;}
- else
-  {my_state = T_REGS_IDLE;}
+if (Tregs_Busy)
+{
+    my_state = T_REGS_BUSY;
+}
+else
+{
+    my_state = T_REGS_IDLE;
+}
 
- if (sim_waiting(ev, from_Memory))
-  {
-   SIM_CAST(t_sixtyfour_bit, mem_value, ev);
-   replies ++;
-   reg_value.t_hex = mem_value;
-   reg_value.t_int = string_to_long(mem_value.s16, 16);
-   TRegs.Update( reg_no, reg_value);
-   if (replies == blocksize)
-    {set_Tregs_idle = true;}
-   else
-    {reg_no = (reg_no + 1) & 63;}
-  }
-
- if (read_block)
-  {
-   requests ++;
-   if (requests < blocksize)
-    { 
-     increment_hex_string(mem_address.s5, 5);
-     mem_read_pkt.address = mem_address;
-     read_Memory = true;
-    }
-   else
+if (sim_waiting( ev, from_Memory ))
+{
+    SIM_CAST( t_sixtyfour_bit, mem_value, ev );
+    replies++;
+    reg_value.t_hex = mem_value;
+    reg_value.t_int = string_to_long( mem_value.s16, 16 );
+    TRegs.Update( reg_no, reg_value );
+    if (replies == blocksize)
     {
-     read_block = false;
-     set_Tregs_idle = true;
-     myCIP->Block_transfer = false;
+        set_Tregs_idle = true;
     }
-  }
+    else
+    {
+        reg_no = (reg_no + 1) & 63;
+    }
+}
+
+if (read_block)
+{
+    requests++;
+    if (requests < blocksize)
+    {
+        increment_hex_string( mem_address.s5, 5 );
+        mem_read_pkt.address = mem_address;
+        read_Memory = true;
+    }
+    else
+    {
+        read_block = false;
+        set_Tregs_idle = true;
+        myCIP->Block_transfer = false;
+    }
+}
 
 if (write_block)
-  {
-   requests ++;
-   increment_hex_string(mem_address.s5, 5);
-   mem_write_pkt.address = mem_address;
-   reg_no = (reg_no + 1) & 63;
-   mem_write_pkt.st =TRegs[reg_no].t_hex;
-   if (requests < blocksize)
-    { write_to_Mem = true;}
-   else
-    {write_block = false;
-     set_Tregs_idle = true;
-     myCIP->Block_transfer = false;
+{
+    requests++;
+    increment_hex_string( mem_address.s5, 5 );
+    mem_write_pkt.address = mem_address;
+    reg_no = (reg_no + 1) & 63;
+    mem_write_pkt.st = TRegs[reg_no].t_hex;
+    if (requests < blocksize)
+    {
+        write_to_Mem = true;
     }
-  }
+    else
+    {
+        write_block = false;
+        set_Tregs_idle = true;
+        myCIP->Block_transfer = false;
+    }
+}
 
- if (sim_waiting(ev, from_CIP))
-  {
-    SIM_CAST(tr_packet, tr_pkt, ev);
-				 printf("T_REGS getting transmit instruction \n");
-     my_state = T_REGS_BUSY;
+if (sim_waiting( ev, from_CIP ))
+{
+    SIM_CAST( tr_packet, tr_pkt, ev );
+    printf( "T_REGS getting transmit instruction \n" );
+    my_state = T_REGS_BUSY;
 
     if (tr_pkt.type == TtoS)								// 074 Transmit (Tjk) to Si
-      {
-	pkt_to_s.reg_no = tr_pkt.i;
-	pkt_to_s.s = TRegs[ (tr_pkt.j << 3) | tr_pkt.k].t_hex;
-	send_to_Sregs = true;
-       }
+    {
+        pkt_to_s.reg_no = tr_pkt.i;
+        pkt_to_s.s = TRegs[(tr_pkt.j << 3) | tr_pkt.k].t_hex;
+        send_to_Sregs = true;
+    }
 
     if (tr_pkt.type == StoT)								// 075 Transmit  Si to (Tjk) 
-      {
-       if (sim_waiting(ev, from_Sregs))	
-	{
-	  SIM_CAST(t_sixtyfour_bit, value, ev);
-	  reg_no = (tr_pkt.j << 3) | tr_pkt.k;
-	  reg_value.t_hex = value;
-	  reg_value.t_int = string_to_long(value.s16, 16);
-	  TRegs.Update(reg_no, reg_value);
-	  set_Tregs_idle = true;
-	}
-      } 
+    {
+        if (sim_waiting( ev, from_Sregs ))
+        {
+            SIM_CAST( t_sixtyfour_bit, value, ev );
+            reg_no = (tr_pkt.j << 3) | tr_pkt.k;
+            reg_value.t_hex = value;
+            reg_value.t_int = string_to_long( value.s16, 16 );
+            TRegs.Update( reg_no, reg_value );
+            set_Tregs_idle = true;
+        }
+    }
 
     if (tr_pkt.type == MtoT)								// 036 Block transfer Memory to Tregs
-     {
-       if (sim_waiting(ev, from_Aregs))	
-	{
-	  SIM_CAST(a_2values, op_values, ev);
-	  blocksize = string_to_int(op_values.op1.s6, 6) & 63;
-	  for (i=0; i<6; i++)
-      	   {mem_address.s5[i] = op_values.op2.s6[i+1];}
-    	 mem_read_pkt.address = mem_address;
-	 reg_no = (tr_pkt.j << 3) | tr_pkt.k;
-	 read_Memory = true;
-	 requests = 0;
-	 read_block = true;
-	}
-     }
+    {
+        if (sim_waiting( ev, from_Aregs ))
+        {
+            SIM_CAST( a_2values, op_values, ev );
+            blocksize = string_to_int( op_values.op1.s6, 6 ) & 63;
+            for (i = 0; i < 6; i++)
+            {
+                mem_address.s5[i] = op_values.op2.s6[i + 1];
+            }
+            mem_read_pkt.address = mem_address;
+            reg_no = (tr_pkt.j << 3) | tr_pkt.k;
+            read_Memory = true;
+            requests = 0;
+            read_block = true;
+        }
+    }
 
     if (tr_pkt.type == TtoM)								// 037 Block transfer Tregs to Memory
-     {
-       if (sim_waiting(ev, from_Aregs))	
-	{
-	  SIM_CAST(a_2values, op_values, ev);
-	  blocksize = string_to_int(op_values.op1.s6, 6) & 63;
-	  reg_no = (tr_pkt.j << 3) | tr_pkt.k;
-	  for (i=0; i<6; i++)
-      	   {mem_address.s5[i] = op_values.op2.s6[i+1];}
-	  mem_write_pkt.address = mem_address;
-	  mem_write_pkt.st = TRegs[reg_no].t_hex;
-	  write_to_Mem = true;
-	  requests = 0;
-          write_block = true;
-//printf("T_registers:  instruction is Twrite_to_m, blocksize = %d, reg_no = %d \n", blocksize, reg_no);
-	}
-     }
-  }
+    {
+        if (sim_waiting( ev, from_Aregs ))
+        {
+            SIM_CAST( a_2values, op_values, ev );
+            blocksize = string_to_int( op_values.op1.s6, 6 ) & 63;
+            reg_no = (tr_pkt.j << 3) | tr_pkt.k;
+            for (i = 0; i < 6; i++)
+            {
+                mem_address.s5[i] = op_values.op2.s6[i + 1];
+            }
+            mem_write_pkt.address = mem_address;
+            mem_write_pkt.st = TRegs[reg_no].t_hex;
+            write_to_Mem = true;
+            requests = 0;
+            write_block = true;
+            //printf("T_registers:  instruction is Twrite_to_m, blocksize = %d, reg_no = %d \n", blocksize, reg_no);
+        }
+    }
+}
 
 
 dump_state();
 
 $phase1
 
- if (set_Tregs_idle)
-  {
-   Tregs_Busy = false;
-   set_Tregs_idle = false;
-  }
+if (set_Tregs_idle)
+{
+    Tregs_Busy = false;
+    set_Tregs_idle = false;
+}
 
- if (send_to_Sregs)
-  {
-	printf("T_Registers: sending  to S_regs, reg_no = %d, value= %s \n", pkt_to_s.reg_no,  pkt_to_s.s.s16);
-	send_S_PKT( to_s_regs, pkt_to_s);
-	send_to_Sregs = false;
-	my_state = T_REGS_IDLE;
-	Tregs_Busy = false;
-  }
+if (send_to_Sregs)
+{
+    printf( "T_Registers: sending  to S_regs, reg_no = %d, value= %s \n", pkt_to_s.reg_no, pkt_to_s.s.s16 );
+    send_S_PKT( to_s_regs, pkt_to_s );
+    send_to_Sregs = false;
+    my_state = T_REGS_IDLE;
+    Tregs_Busy = false;
+}
 
- if (read_Memory)
-  {
-printf("T_registers: sending read packet to Memory, address = %s \n", mem_read_pkt.address.s5);
-   send_READ_PKT(to_memory, mem_read_pkt);
-   read_Memory = false;
-  }
- 
- if (write_to_Mem)
-  {
-printf("T_registers: sending write packet to Memory, address = %s \n", mem_write_pkt.address.s5);
-   send_WRITE64_PKT(to_memory, mem_write_pkt);
-   write_to_Mem = false;
-  }
+if (read_Memory)
+{
+    printf( "T_registers: sending read packet to Memory, address = %s \n", mem_read_pkt.address.s5 );
+    send_READ_PKT( to_memory, mem_read_pkt );
+    read_Memory = false;
+}
+
+if (write_to_Mem)
+{
+    printf( "T_registers: sending write packet to Memory, address = %s \n", mem_write_pkt.address.s5 );
+    send_WRITE64_PKT( to_memory, mem_write_pkt );
+    write_to_Mem = false;
+}
 

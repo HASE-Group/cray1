@@ -13,18 +13,18 @@ $class_defs
 
 void vector_reg::setI()
 {
-  my_state = IDLE;
-  dump_state();
+    my_state = IDLE;
+    dump_state();
 }
 
 void vector_reg::setC()
 {
-  my_state = BUSY_C;
-  dump_state();
+    my_state = BUSY_C;
+    dump_state();
 }
 
 void vector_reg::setR()
 {
-  my_state = BUSY_R;
-  dump_state();
+    my_state = BUSY_R;
+    dump_state();
 }

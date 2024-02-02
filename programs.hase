@@ -13,7 +13,7 @@ $class_decls
 
 // Variable Declarations
 
-memory * myMemory;
+memory* myMemory;
 
 bool coding_error, P_error;
 int base;                      // base address of code and data .mem files
@@ -31,14 +31,14 @@ $class_defs
 
 $pre
 
-myMemory = (memory*)sim.get_entity(sim.get_entity_id("MEMORY"));
+myMemory = (memory*)sim.get_entity( sim.get_entity_id( "MEMORY" ) );
 coding_error = false;
 P_error = false;
 
 mem_address = 0;
 
-if ( (Program <1) || (Program > 4) )
-    P_error = true;
+if ((Program < 1) || (Program > 4))
+P_error = true;
 
 switch (Program)
 {
@@ -56,59 +56,59 @@ case 4:
     break;
 }
 
-for (i=0; i<128; i++)
+for (i = 0; i < 128; i++)
 {
-    for (j=0; j<4; j++)
+    for (j = 0; j < 4; j++)
     {
-        o_parcel = prog_mem[base + 4*i+j];
+        o_parcel = prog_mem[base + 4 * i + j];
 
-        if ( (o_parcel.instrn.k > 7) || (o_parcel.instrn.j > 7) || (o_parcel.instrn.i > 7)
+        if ((o_parcel.instrn.k > 7) || (o_parcel.instrn.j > 7) || (o_parcel.instrn.i > 7)
             || (o_parcel.instrn.h > 7) || (o_parcel.instrn.g > 7) || (o_parcel.instrn.f > 7)
             || (o_parcel.instrn.k < 0) || (o_parcel.instrn.j < 0) || (o_parcel.instrn.i < 0)
             || (o_parcel.instrn.h < 0) || (o_parcel.instrn.g < 0) || (o_parcel.instrn.f < 0)
-        )
+            )
         {
             if (!coding_error)
             {
                 coding_error = true;
-                error_line = base + 4*i+j;
+                error_line = base + 4 * i + j;
             }
         }
         temp = (o_parcel.instrn.k & 7) | ((o_parcel.instrn.j & 7) << 3) | ((o_parcel.instrn.i & 7) << 6)
-            | ((o_parcel.instrn.h & 7) << 9)  | ((o_parcel.instrn.g & 7) << 12) | ((o_parcel.instrn.f & 7) << 15);
+            | ((o_parcel.instrn.h & 7) << 9) | ((o_parcel.instrn.g & 7) << 12) | ((o_parcel.instrn.f & 7) << 15);
 
-        for (k=3; k>=0; k--)
+        for (k = 3; k >= 0; k--)
         {
-            mem_word.s16[4*j+k] = hex_to_char(temp & 15);
+            mem_word.s16[4 * j + k] = hex_to_char( temp & 15 );
             temp = temp >> 4;
         }
     }
-    mem_word.s16[4*3+3+1] = '\0';
-    myMemory->main_mem.Update(i, mem_word);
+    mem_word.s16[4 * 3 + 3 + 1] = '\0';
+    myMemory->main_mem.Update( i, mem_word );
 }
 
-for (i = 0; i<256; i++)
-{ 
-    data = data_mem[ i];
-    for (j=15; j>=0; j--)
+for (i = 0; i < 256; i++)
+{
+    data = data_mem[i];
+    for (j = 15; j >= 0; j--)
     {
-        mem_word.s16[j] = hex_to_char(data & 15);
-        data = data >>4;
+        mem_word.s16[j] = hex_to_char( data & 15 );
+        data = data >> 4;
     }
-    myMemory->main_mem.Update((i+256), mem_word);
-} 
+    myMemory->main_mem.Update( (i + 256), mem_word );
+}
 
 $phase0
 
 if (P_error || coding_error)
-    stopSimulation();
+stopSimulation();
 
 $phase1
 
 $report
 
 if (coding_error)
-    printf("coding error on line %d: instruction fields must be in the range 0-7 \n", error_line);
+printf( "coding error on line %d: instruction fields must be in the range 0-7 \n", error_line );
 
 if (P_error)
-    printf(" Program number must be 1, 2, 3 or 4\n");
+printf( " Program number must be 1, 2, 3 or 4\n" );

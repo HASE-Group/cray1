@@ -10,26 +10,26 @@ $class_decls
 
 // Variable Declarations
 
- bool log_busy, test_busy;
- int i, m_select, test_result, test_value, VM_bit;
- fn_packet fn_pkt;
- t_sixtyfour_bit operand1, operand2;
- s_2values op_values;
- m_value merge_sv_ops;
- m_2values merge_vv_ops;
+bool log_busy, test_busy;
+int i, m_select, test_result, test_value, VM_bit;
+fn_packet fn_pkt;
+t_sixtyfour_bit operand1, operand2;
+s_2values op_values;
+m_value merge_sv_ops;
+m_2values merge_vv_ops;
 
- s_struct log_result;			// i = dest_reg, s = 64-bit result
+s_struct log_result;			// i = dest_reg, s = 64-bit result
 // reg_test_format test_result;	// i = dest_reg, op = test result
 
 $class_defs
 
 $pre
 
- log_busy = false;
- test_busy = false;
- strcpy (log_result.s.s16, "0000000000000000");
- my_state = IDLE;
- dump_state();
+log_busy = false;
+test_busy = false;
+strcpy( log_result.s.s16, "0000000000000000" );
+my_state = IDLE;
+dump_state();
 
 $phase0
 
@@ -37,118 +37,141 @@ $phase0
 
 // predicates for use in sim_waiting tests
 
- sim_from_port from_S_REGS(from_s_regs);
- sim_from_port from_V_REGS(from_v_regs);
- sim_from_port from_CIP(from_cip);
+sim_from_port from_S_REGS( from_s_regs );
+sim_from_port from_V_REGS( from_v_regs );
+sim_from_port from_CIP( from_cip );
 
- if (sim_waiting(ev, from_CIP))
-  {SIM_CAST(fn_packet, fn_pkt, ev); 
-printf("V_LOGIC getting function %c%c packet from CIP \n", fn_pkt.op[0], fn_pkt.op[1]);
+if (sim_waiting( ev, from_CIP ))
+{
+    SIM_CAST( fn_packet, fn_pkt, ev );
+    printf( "V_LOGIC getting function %c%c packet from CIP \n", fn_pkt.op[0], fn_pkt.op[1] );
 }
 
- if (sim_waiting(ev, from_S_REGS))
-  {SIM_CAST(t_sixtyfour_bit, operand1, ev);}
+if (sim_waiting( ev, from_S_REGS ))
+{
+    SIM_CAST( t_sixtyfour_bit, operand1, ev );
+}
 
- if (sim_waiting(ev, from_V_REGS))
-  {
-   if (ev.type() == S_1VALUE)
-    {SIM_CAST(t_sixtyfour_bit, operand2, ev);}
-
-   else if (ev.type() == M_1VALUE)
+if (sim_waiting( ev, from_V_REGS ))
+{
+    if (ev.type() == S_1VALUE)
     {
-     SIM_CAST(m_value, merge_sv_ops, ev);
-     m_select = merge_sv_ops.VMbit;
-     strcpy (operand2.s16, merge_sv_ops.op2.s16);
+        SIM_CAST( t_sixtyfour_bit, operand2, ev );
     }
 
-   else if (ev.type() == S_2VALUES)
+    else if (ev.type() == M_1VALUE)
     {
-     SIM_CAST(s_2values, op_values, ev);
-     strcpy (operand1.s16, op_values.op1.s16);
-     strcpy (operand2.s16, op_values.op2.s16);
+        SIM_CAST( m_value, merge_sv_ops, ev );
+        m_select = merge_sv_ops.VMbit;
+        strcpy( operand2.s16, merge_sv_ops.op2.s16 );
+    }
+
+    else if (ev.type() == S_2VALUES)
+    {
+        SIM_CAST( s_2values, op_values, ev );
+        strcpy( operand1.s16, op_values.op1.s16 );
+        strcpy( operand2.s16, op_values.op2.s16 );
     }
 
     else if (ev.type() == M_2VALUES)
     {
-     SIM_CAST(m_2values, merge_vv_ops, ev);
-     m_select = merge_vv_ops.VMbit;
-     strcpy (operand1.s16, merge_vv_ops.op1.s16);
-     strcpy (operand2.s16, merge_vv_ops.op2.s16);
+        SIM_CAST( m_2values, merge_vv_ops, ev );
+        m_select = merge_vv_ops.VMbit;
+        strcpy( operand1.s16, merge_vv_ops.op1.s16 );
+        strcpy( operand2.s16, merge_vv_ops.op2.s16 );
     }
 
     log_busy = true;
-     switch (fn_pkt.op[0] )
-     {
-	case '&':												// 140, 141
-	   l_and(operand1.s16, operand2.s16, log_result.s.s16);
-printf("V_LOGIC: And, operand 1 = %s, operand 2 = %s, result = %s  \n", operand1.s16, operand2.s16, log_result.s.s16);
-	   break;
-	case '|':												// 142, 143
-	   l_or(operand1.s16, operand2.s16, log_result.s.s16);
-	   break;
-	case 'X':												// 144, 145
-	   l_xor(operand1.s16, operand2.s16, log_result.s.s16);
-	   break;
-	case 'M':												// 146, 147
-printf("V_LOGIC: Merge, m select bit = %d, operand 1 = %s, operand 2 = %s  \n", m_select, operand1.s16, operand2.s16);
-	   if (m_select == 1)
-	    {strcpy (log_result.s.s16, operand1.s16);}
-	   else
-	    {strcpy (log_result.s.s16, operand2.s16);}
-	   break;
-	case 'T':												// 175
-	  log_busy = false;
-	  test_busy = true;
-//	  test_value = string_to_int (operand2.s16, 16);
-	  test_value = string_to_long (operand2.s16, 16);
-	  test_result = 0;
-	  switch ( fn_pkt.op[1] )
-	    {
-	    case '0':
-	      if (test_value == 0)
-		{test_result = 1;}
-//printf("V_LOGIC: Test 0, test value = %d, test result = %d \n", test_value, test_result); 
-	      break;
-	    case '1':
-	      if (test_value != 0)
-		{test_result = 1;}
-//printf("V_LOGIC: Test 1, test value = %d, test result = %d \n", test_value, test_result); 
-	      break;
-	    case '2':
-	      if (test_value >= 0)
-		{test_result = 1;}
-//printf("V_LOGIC: Test 2, test value = %d, test result = %d \n", test_value, test_result); 
- 	      break;
-	    case '3':
-	      if (test_value < 0)
-		{test_result = 1;}
-//printf("V_LOGIC: Test 3, test value = %d, test result = %d \n", test_value, test_result); 
-	      break;
-	    }
-	  break;
-     }
+    switch (fn_pkt.op[0])
+    {
+    case '&':												// 140, 141
+        l_and( operand1.s16, operand2.s16, log_result.s.s16 );
+        printf( "V_LOGIC: And, operand 1 = %s, operand 2 = %s, result = %s  \n", operand1.s16, operand2.s16, log_result.s.s16 );
+        break;
+    case '|':												// 142, 143
+        l_or( operand1.s16, operand2.s16, log_result.s.s16 );
+        break;
+    case 'X':												// 144, 145
+        l_xor( operand1.s16, operand2.s16, log_result.s.s16 );
+        break;
+    case 'M':												// 146, 147
+        printf( "V_LOGIC: Merge, m select bit = %d, operand 1 = %s, operand 2 = %s  \n", m_select, operand1.s16, operand2.s16 );
+        if (m_select == 1)
+        {
+            strcpy( log_result.s.s16, operand1.s16 );
+        }
+        else
+        {
+            strcpy( log_result.s.s16, operand2.s16 );
+        }
+        break;
+    case 'T':												// 175
+        log_busy = false;
+        test_busy = true;
+        //	  test_value = string_to_int (operand2.s16, 16);
+        test_value = string_to_long( operand2.s16, 16 );
+        test_result = 0;
+        switch (fn_pkt.op[1])
+        {
+        case '0':
+            if (test_value == 0)
+            {
+                test_result = 1;
+            }
+            //printf("V_LOGIC: Test 0, test value = %d, test result = %d \n", test_value, test_result); 
+            break;
+        case '1':
+            if (test_value != 0)
+            {
+                test_result = 1;
+            }
+            //printf("V_LOGIC: Test 1, test value = %d, test result = %d \n", test_value, test_result); 
+            break;
+        case '2':
+            if (test_value >= 0)
+            {
+                test_result = 1;
+            }
+            //printf("V_LOGIC: Test 2, test value = %d, test result = %d \n", test_value, test_result); 
+            break;
+        case '3':
+            if (test_value < 0)
+            {
+                test_result = 1;
+            }
+            //printf("V_LOGIC: Test 3, test value = %d, test result = %d \n", test_value, test_result); 
+            break;
+        }
+        break;
+    }
     log_result.reg_no = fn_pkt.reg_no;
-  }
+}
 
- if (log_busy || test_busy)
-  {my_state = BUSY;}
- else
-  {my_state = IDLE; }
- dump_state();
+if (log_busy || test_busy)
+{
+    my_state = BUSY;
+}
+else
+{
+    my_state = IDLE;
+}
+dump_state();
 
 $phase1
 
 if (log_busy || test_busy)
-  {printf("V_LOG_U: log_busy = %d, test_busy = %d \n", log_busy, test_busy);}
- if (log_busy)
-  {
-// printf("v_LOG_U sending result = %s to register %d \n", log_result.s.s16, log_result.reg_no);
+{
+    printf( "V_LOG_U: log_busy = %d, test_busy = %d \n", log_busy, test_busy );
+}
+if (log_busy)
+{
+    // printf("v_LOG_U sending result = %s to register %d \n", log_result.s.s16, log_result.reg_no);
     send_S_PKT( to_v_regs, log_result );
     log_busy = false;
-   }
- if (test_busy)
-   {
-    send_TEST_RESULT (to_vm, test_result);
+}
+if (test_busy)
+{
+    send_TEST_RESULT( to_vm, test_result );
     test_busy = false;
-printf("V_LOG_U: resetting test_busy \n");
-  }
+    printf( "V_LOG_U: resetting test_busy \n" );
+}

@@ -19,79 +19,95 @@ t_twentyfour_bit br_address, b_message;
 //t_p_datapkt p_address;
 tr24_packet tr24_pkt;
 
-void create_24bit( char* str22, char* str24);
+void create_24bit( char* str22, char* str24 );
 void increment_p();
 void return_jump();
 
 $class_defs
 
-void p_register::create_24bit( char* str22, char* str24)
+void p_register::create_24bit( char* str22, char* str24 )
 {
-    str24[0] = hex_to_char( char_to_hex(str22[0])/4 );
-    for (int i =1; i<5; i++)
-            str24[i]= hex_to_char( ( char_to_hex(str22[i])%4)*4 
-        + char_to_hex(str22[i-1])/4 );
-    str24[5] = hex_to_char( (char_to_hex(str22[4])%4)*4
-        + char_to_hex(str22[5]) ) ;
-    printf("p_register:value stored to B is %s, P is %s \n", str24, str22);
+    str24[0] = hex_to_char( char_to_hex( str22[0] ) / 4 );
+    for (int i = 1; i < 5; i++)
+        str24[i] = hex_to_char( (char_to_hex( str22[i] ) % 4) * 4
+            + char_to_hex( str22[i - 1] ) / 4 );
+    str24[5] = hex_to_char( (char_to_hex( str22[4] ) % 4) * 4
+        + char_to_hex( str22[5] ) );
+    printf( "p_register:value stored to B is %s, P is %s \n", str24, str22 );
 }
 
 
 void p_register::return_jump()
 {
-    for (int i = 0; i < 6 ; i++)
-        {p_message.s6[i]=P[i];}
-    p_message.s6[6]='\0';
-    send_ADDRESS(to_b_regs, p_message);
+    for (int i = 0; i < 6; i++)
+    {
+        p_message.s6[i] = P[i];
+    }
+    p_message.s6[6] = '\0';
+    send_ADDRESS( to_b_regs, p_message );
 }
 
 void p_register::increment_p()
 {
-    if ( char_less_than_int(P[5], 15) ) 
-        {increment_char(P[5]);}
+    if (char_less_than_int( P[5], 15 ))
+    {
+        increment_char( P[5] );
+    }
     else
     {
-        P[5]='0';
-        if (char_less_than_int( P[4] , 15 )) 
-            {increment_char(P[4]);}
+        P[5] = '0';
+        if (char_less_than_int( P[4], 15 ))
+        {
+            increment_char( P[4] );
+        }
         else
         {
-            P[4]='0';
-            if ( char_less_than_int(P[3] , 15 ))  
-                {increment_char(P[3]);}
+            P[4] = '0';
+            if (char_less_than_int( P[3], 15 ))
+            {
+                increment_char( P[3] );
+            }
             else
             {
-                P[3]='0';
-                if ( char_less_than_int(P[2] , 15) )  
-                    {increment_char(P[2]);}
+                P[3] = '0';
+                if (char_less_than_int( P[2], 15 ))
+                {
+                    increment_char( P[2] );
+                }
                 else
                 {
-                    P[2]='0';
-                    if ( char_less_than_int(P[1] , 15) )  
-                         {increment_char(P[1]);}
+                    P[2] = '0';
+                    if (char_less_than_int( P[1], 15 ))
+                    {
+                        increment_char( P[1] );
+                    }
                     else
                     {
-                        P[1]='0';
-                        if ( char_less_than_int(P[0] , 15) )  
-                            {increment_char(P[0]);}
+                        P[1] = '0';
+                        if (char_less_than_int( P[0], 15 ))
+                        {
+                            increment_char( P[0] );
+                        }
                         else
-                            P[0]='0';  //overflow
+                            P[0] = '0';  //overflow
                     }
                 }
             }
         }
     }
-    printf( " P_register: P incremented, = %s \n", P); 
-    dump_state();   
+    printf( " P_register: P incremented, = %s \n", P );
+    dump_state();
 }
 
-$pre 
+$pre
 
-for (int i = 0; i < 6 ; i++)
-    {P[i] = '0';}
-P[6]='\0';
- 
-dump_state();   
+for (int i = 0; i < 6; i++)
+{
+    P[i] = '0';
+}
+P[6] = '\0';
+
+dump_state();
 
 send_to_I = true;
 
@@ -99,33 +115,33 @@ $phase0
 
 // predicates for use in sim_waiting test
 
-sim_from_port from_CIP(from_cip);
-sim_from_port from_Bregs(from_b_regs);
+sim_from_port from_CIP( from_cip );
+sim_from_port from_Bregs( from_b_regs );
 
-if (sim_waiting(ev, from_CIP))        // Branch to ijkm
+if (sim_waiting( ev, from_CIP ))        // Branch to ijkm
 {
-    SIM_CAST (t_twentyfour_bit, br_address, ev);
-    strcpy(P, br_address.s6);
+    SIM_CAST( t_twentyfour_bit, br_address, ev );
+    strcpy( P, br_address.s6 );
     send_to_I = true;
     dump_state();
 }
 
-if (sim_waiting(ev, from_Bregs))          // Branch to Bjk
+if (sim_waiting( ev, from_Bregs ))          // Branch to Bjk
 {
-    SIM_CAST (t_twentyfour_bit, br_address, ev);
-    strcpy (P, br_address.s6);
+    SIM_CAST( t_twentyfour_bit, br_address, ev );
+    strcpy( P, br_address.s6 );
     send_to_I = true;
-    dump_state();   
+    dump_state();
 }
 
 $phase1
 
 if (send_to_I)     // send contents of P to instruction buffers
 {
-    for (int i = 0; i < 6 ; i++)
-        p_message.s6[i]=P[i];
-    p_message.s6[6]='\0';
-    send_ADDRESS(to_i_buffers, p_message);
+    for (int i = 0; i < 6; i++)
+        p_message.s6[i] = P[i];
+    p_message.s6[6] = '\0';
+    send_ADDRESS( to_i_buffers, p_message );
     // printf("P_register sending address %s to IB \n", p_message.s6);
     send_to_I = false;
 }

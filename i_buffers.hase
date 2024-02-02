@@ -24,7 +24,7 @@ $class_decls
 
 // Variable Declarations
 
-nip * myNIP;
+nip* myNIP;
 bool memory_busy, send_to_memory;
 bool get_parcel, diff_buff_delay, nip_ready, send_instruction, next_word_to_nip, parcel_to_lip;
 bool stop_send;
@@ -47,84 +47,84 @@ t_four_words buff_input;//, buff_update;
 
 //int memory_busy;
 //int next_word_to_nip; 
-int  matches( char* bar, char* address);
+int  matches( char* bar, char* address );
 
-void copy_into_ip( int line, int parcel);
-void update_buffers(t_four_words buff_update);
+void copy_into_ip( int line, int parcel );
+void update_buffers( t_four_words buff_update );
 void clear_pipe();
 //void status_idle();
 
 $class_defs
 
-int  i_buffers::matches( char* bar, char* address)
+int  i_buffers::matches( char* bar, char* address )
 {
     // Returns 1 if the BAR matches the first 16 bits of the address, 0 otherwise
-    for(int i = 0; i<4; i++)
+    for (int i = 0; i < 4; i++)
     {
-        if ( bar[i] != address[i]) 
+        if (bar[i] != address[i])
             return 0;
     }
     return 1;
 }
 
-void i_buffers::copy_into_ip( int line, int parcel)
+void i_buffers::copy_into_ip( int line, int parcel )
 {
     // finds required instruction parcel in current buffer and copies into instruction_parcel
     //printf("I-buffers: accessing line %d parcel %d \n", line, parcel);
     switch (current_buffer)
     {
-    case 0: for (int i= 0; i<4; i++)
-        instruction_parcel.s4[i] = buff0[line].s16[parcel*4 + i];
+    case 0: for (int i = 0; i < 4; i++)
+        instruction_parcel.s4[i] = buff0[line].s16[parcel * 4 + i];
         break;
-    case 1: for (int i= 0; i<4; i++)
-        instruction_parcel.s4[i] = buff1[line].s16[parcel*4 + i];
+    case 1: for (int i = 0; i < 4; i++)
+        instruction_parcel.s4[i] = buff1[line].s16[parcel * 4 + i];
         break;
-    case 2: for (int i= 0; i<4; i++)
-        instruction_parcel.s4[i] = buff2[line].s16[parcel*4 + i];
+    case 2: for (int i = 0; i < 4; i++)
+        instruction_parcel.s4[i] = buff2[line].s16[parcel * 4 + i];
         break;
-    case 3: for (int i= 0; i<4; i++)
-        instruction_parcel.s4[i] = buff3[line].s16[parcel*4 + i];
+    case 3: for (int i = 0; i < 4; i++)
+        instruction_parcel.s4[i] = buff3[line].s16[parcel * 4 + i];
         break;
     }
     instruction_parcel.s4[4] = '\0';
     send_instruction = true;
 }
 
-void i_buffers::update_buffers(t_four_words buff_update)
+void i_buffers::update_buffers( t_four_words buff_update )
 {
-    int line = char_to_hex(buff_update.address[4]);     // line number in buffer of first word in block of 
+    int line = char_to_hex( buff_update.address[4] );     // line number in buffer of first word in block of 
     // 4 64-bit words from memory
-    if ( matches( BAR[0].s4, buff_update.address))
+    if (matches( BAR[0].s4, buff_update.address ))
     {
         //printf("Instruction Buffers: updating buff0 \n");
-        buff0.Update( line, buff_update.word0);
-        buff0.Update( line + 1, buff_update.word1);
-        buff0.Update( line + 2, buff_update.word2);
-        buff0.Update( line + 3, buff_update.word3);
+        buff0.Update( line, buff_update.word0 );
+        buff0.Update( line + 1, buff_update.word1 );
+        buff0.Update( line + 2, buff_update.word2 );
+        buff0.Update( line + 3, buff_update.word3 );
     }
-    else if ( matches( BAR[1].s4, buff_update.address))
+    else if (matches( BAR[1].s4, buff_update.address ))
     {
         //printf("Instruction Buffers: updating buff1 \n");
-        buff1.Update( line, buff_update.word0);
-        buff1.Update( line + 1, buff_update.word1);
-        buff1.Update( line + 2, buff_update.word2);
-        buff1.Update( line + 3, buff_update.word3);
+        buff1.Update( line, buff_update.word0 );
+        buff1.Update( line + 1, buff_update.word1 );
+        buff1.Update( line + 2, buff_update.word2 );
+        buff1.Update( line + 3, buff_update.word3 );
     }
-    else if ( matches( BAR[2].s4, buff_update.address))
+    else if (matches( BAR[2].s4, buff_update.address ))
     {
         //printf("Instruction Buffers: updating buff2 \n");
-        buff2.Update( line, buff_update.word0);
-        buff2.Update( line + 1, buff_update.word1);
-        buff2.Update( line + 2, buff_update.word2);
-        buff2.Update( line + 3, buff_update.word3);
+        buff2.Update( line, buff_update.word0 );
+        buff2.Update( line + 1, buff_update.word1 );
+        buff2.Update( line + 2, buff_update.word2 );
+        buff2.Update( line + 3, buff_update.word3 );
     }
     else
     {
         //printf("Instruction Buffers: updating buff3 \n");
-        buff3.Update( line, buff_update.word0);
-        buff3.Update( line + 1, buff_update.word1);
-        buff3.Update( line + 2, buff_update.word2);
-        buff3.Update( line + 3, buff_update.word3);
+        buff3.Update( line, buff_update.word0 );
+        buff3.Update( line + 1, buff_update.word1 );
+        buff3.Update( line + 2, buff_update.word2 );
+        buff3.Update( line + 3, buff_update.word3 );
     }
     get_parcel = true;
     dump_state();
@@ -137,7 +137,7 @@ void i_buffers::clear_pipe()
 
 $pre
 
-myNIP = (nip*)sim.get_entity(sim.get_entity_id("NIP"));
+myNIP = (nip*)sim.get_entity( sim.get_entity_id( "NIP" ) );
 
 get_parcel = false;
 diff_buff_delay = false;
@@ -153,36 +153,36 @@ next_buffer = 0;
 active_line = 0;
 active_parcel = 0;
 
-strcpy(status, "----");
+strcpy( status, "----" );
 
-strcpy (instruction_address.s6, "000000");
-strcpy (buff_address.s4, "0000");
+strcpy( instruction_address.s6, "000000" );
+strcpy( buff_address.s4, "0000" );
 
-for (int i= 0; i<4; i++)
+for (int i = 0; i < 4; i++)
     blank_parcel.s4[i] = 0;
 
 // Initialise all Buffer Address Registers (BARs) to FFFF
 // Create a temporary 16-bit word as 4 hex characters = F and copy FFFF to all 4 BARs
-for (int i= 0; i<4; i++)
+for (int i = 0; i < 4; i++)
     empty_bar.s4[i] = 'F';
 empty_bar.s4[4] = '\0';
-for (int i= 0; i<4; i++)
+for (int i = 0; i < 4; i++)
 {
     // BAR[i] = empty_bar;
-    BAR.Update(i, empty_bar);
+    BAR.Update( i, empty_bar );
 }
 
 // Initialise buffers to all 0s
 // Create a temporary 64-bit word as 16 hex characters = 0 and copy this word to each line of each buffer
-for (int i=0; i<16; i++)
+for (int i = 0; i < 16; i++)
     empty_line.s16[i] = '0';
 empty_line.s16[16] = '\0';
-for (int i=0; i<16; i++)
+for (int i = 0; i < 16; i++)
 {
-    buff0.Update (i, empty_line);
-    buff1.Update (i, empty_line);
-    buff2.Update (i, empty_line);
-    buff3.Update (i, empty_line);
+    buff0.Update( i, empty_line );
+    buff1.Update( i, empty_line );
+    buff2.Update( i, empty_line );
+    buff3.Update( i, empty_line );
 }
 dump_state();
 
@@ -190,44 +190,46 @@ $phase0
 
 // predicate for use in sim_waiting test
 
-sim_from_port from_Memory(from_memory);
-sim_from_port from_NIP(from_nip);
-sim_from_port from_P(from_p_reg);
+sim_from_port from_Memory( from_memory );
+sim_from_port from_NIP( from_nip );
+sim_from_port from_P( from_p_reg );
 
 // Deal first with block of data from memory
-if (sim_waiting(ev, from_Memory))
+if (sim_waiting( ev, from_Memory ))
 {
     //printf("Instruction Buffers: getting instructions from memory \n");
     if (block == 0)
     {
-        SIM_CAST(t_four_words, buff_input, ev);
-        update_buffers(buff_input);
-        copy_into_ip (active_line, active_parcel);
+        SIM_CAST( t_four_words, buff_input, ev );
+        update_buffers( buff_input );
+        copy_into_ip( active_line, active_parcel );
         //           copy_into_ip( instruction_address.s6);
-        block ++;
+        block++;
     }
     else
     {
-    SIM_CAST(t_four_words, buff_input, ev);
-    update_buffers(buff_input);
-    if (block == 3)
-        {block = 0;}
+        SIM_CAST( t_four_words, buff_input, ev );
+        update_buffers( buff_input );
+        if (block == 3)
+        {
+            block = 0;
+        }
     }
-    printf("IB: address from memory = %s \n", buff_input.address);
+    printf( "IB: address from memory = %s \n", buff_input.address );
 }
 
 /*
 // then check to see if a 'two-parcel' event has been received from nip.
 sim_hold(1);
 
-if ( sim_waiting(ev, from_NIP)) 
+if ( sim_waiting(ev, from_NIP))
 {
 SIM_CAST(int, ack, ev);
 //        increment_hex_string(instruction_address.s6, 6);
 //printf("Instruction Buffers: getting ack = %d from NIP \n", ack);
 
 if (ack == 2)
-{ 
+{
 //printf("Instruction Buffers: getting two-parcel signal from NIP \n");
 //        copy_into_ip( instruction_address.s6);
 next_word_to_nip = false;
@@ -244,15 +246,15 @@ next_word_to_nip = false;
 //   sim_hold(1);
 */
 
-if (sim_waiting(ev, from_P))       // as a result of a branch
+if (sim_waiting( ev, from_P ))       // as a result of a branch
 {
     // Receive a message from the P register - contains the address of the next instruction.
-    SIM_CAST (t_twentyfour_bit, instruction_address, ev);
-    printf("Instruction Buffer getting address from P\n");
-    strcpy (instruction_parcel.s4, blank_parcel.s4);
+    SIM_CAST( t_twentyfour_bit, instruction_address, ev );
+    printf( "Instruction Buffer getting address from P\n" );
+    strcpy( instruction_parcel.s4, blank_parcel.s4 );
     get_parcel = true;
 }
-printf("IB instruction_address = %s \n", instruction_address.s6);
+printf( "IB instruction_address = %s \n", instruction_address.s6 );
 
 if (get_parcel)
 {
@@ -261,13 +263,13 @@ if (get_parcel)
     // In Buffer condition _Different - change current buffer and delay 1 cycle
     // Out_of_buffer_condition - access memory and update next buffer
 
-    int_i_address = string_to_int (instruction_address.s6,6);
+    int_i_address = string_to_int( instruction_address.s6, 6 );
 
     // form 16-bit address for BAR
     int_buff_address = int_i_address >> 6;
-    for (int i=0; i<3; i++)
+    for (int i = 0; i < 3; i++)
     {
-        buff_address.s4[3-i] = hex_to_char(int_buff_address & 15);
+        buff_address.s4[3 - i] = hex_to_char( int_buff_address & 15 );
         int_buff_address = int_buff_address >> 4;
     }
 
@@ -275,51 +277,51 @@ if (get_parcel)
     active_line = (int_i_address & 60) >> 2;
     active_parcel = int_i_address & 3;
 
-    strcpy(status, "----");
+    strcpy( status, "----" );
 
-    if ( matches( BAR[current_buffer].s4, buff_address.s4))
+    if (matches( BAR[current_buffer].s4, buff_address.s4 ))
     {                                                  // fetch from current buffer
         //printf("IB: BAR match - buff_address = %s in BAR %d \n", buff_address.s4, current_buffer);
-        strcpy (status, "IB-S");
+        strcpy( status, "IB-S" );
         dump_state();
-        copy_into_ip (active_line, active_parcel);
+        copy_into_ip( active_line, active_parcel );
     }
 
     else
     {
-        printf("IB: BAR mismatch on current buffer - buff_address = %s, \n", buff_address.s4);
-        for (int i= 1; i<4; i++) 
+        printf( "IB: BAR mismatch on current buffer - buff_address = %s, \n", buff_address.s4 );
+        for (int i = 1; i < 4; i++)
         {
-            if ( matches( BAR[ mod4(current_buffer + i) ].s4, buff_address.s4 ) )
+            if (matches( BAR[mod4( current_buffer + i )].s4, buff_address.s4 ))
             {                                                // fetch from different buffer
-                current_buffer = mod4(current_buffer + i);
-                strcpy (status, "IB-D");
+                current_buffer = mod4( current_buffer + i );
+                strcpy( status, "IB-D" );
                 dump_state();
                 diff_buff_delay = true;
-                copy_into_ip (active_line, active_parcel);
+                copy_into_ip( active_line, active_parcel );
             }
         }
     }
-    if (status[0]!='I')                                      // update a buffer from memory
+    if (status[0] != 'I')                                      // update a buffer from memory
     {
-        printf("IB: BAR no match  - buff_address = %s, \n", buff_address.s4);
+        printf( "IB: BAR no match  - buff_address = %s, \n", buff_address.s4 );
         int_mem_address = int_i_address >> 2;
-        for (int i=0; i<5; i++)
+        for (int i = 0; i < 5; i++)
         {
-            memory_address.s5[4-i] = hex_to_char(int_mem_address & 15);
+            memory_address.s5[4 - i] = hex_to_char( int_mem_address & 15 );
             int_mem_address = int_mem_address >> 4;
         }
         memory_address.s5[5] = '\0';
-        printf("memory_address = %s \n", memory_address.s5);
+        printf( "memory_address = %s \n", memory_address.s5 );
         //     Out_of_buffer_condition();
-        strcpy (status, "OoB ");
+        strcpy( status, "OoB " );
         dump_state();
         current_buffer = next_buffer;
-        next_buffer = mod4(next_buffer + 1);
-        BAR.Update(current_buffer, buff_address);
+        next_buffer = mod4( next_buffer + 1 );
+        BAR.Update( current_buffer, buff_address );
         send_to_memory = true;
     }
-    get_parcel =  false;
+    get_parcel = false;
 }
 
 $phase1
@@ -330,32 +332,32 @@ if (stop_send)
     stop_send = false;
 }
 
-sim_hold(5);
+sim_hold( 5 );
 nip_ready = myNIP->nip_ready;
 parcel_to_lip = myNIP->two_parcel;
-printf("IBuffer: nip_ready = %d \n", nip_ready);
+printf( "IBuffer: nip_ready = %d \n", nip_ready );
 if (send_instruction && !diff_buff_delay && nip_ready)
 {
     // Send instruction_parcel to nip, and to lip if parcel_to_lip is set in NIP
-    send_INSTPKT(to_nip, instruction_parcel);
-    printf("Buffer sending %s to NIP \n", instruction_parcel.s4);
+    send_INSTPKT( to_nip, instruction_parcel );
+    printf( "Buffer sending %s to NIP \n", instruction_parcel.s4 );
     if (parcel_to_lip)         // NIP use its packet as confirmation that this packet has been sent to LIP
-    { 
-        send_INSTPKT(to_lip, instruction_parcel);
-        printf("IBuffer sending %s to LIP \n", instruction_parcel.s4); 
+    {
+        send_INSTPKT( to_lip, instruction_parcel );
+        printf( "IBuffer sending %s to LIP \n", instruction_parcel.s4 );
         parcel_to_lip = false;
     }
     nip_ready = false;
     send_instruction = false;
-    increment_hex_string (instruction_address.s6, 6);
+    increment_hex_string( instruction_address.s6, 6 );
     get_parcel = true;
 }
 
 diff_buff_delay = false;
 
-if(send_to_memory)
+if (send_to_memory)
 {
-    send_I_ADDRESS(to_memory, memory_address);
+    send_I_ADDRESS( to_memory, memory_address );
     send_to_memory = false;
     //printf("Instruction Buffer: sending address to memory \n");
 }

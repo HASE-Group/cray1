@@ -36,32 +36,32 @@ $class_defs
 
 $pre
 
-    myCIP = (cip*)sim.get_entity( sim.get_entity_id( "CIP" ) );
-    Bregs_Busy = false;
-    set_Bregs_idle = false;
-    read_Memory = false;
-    write_to_Mem = false;
-    read_block = false;
-    write_block = false;
-    send_to_Aregs = false;
-    send_to_Preg = false;
-    blocksize = 0;
-    requests = 0;
-    replies = 0;
-    pkt_to_p.op = 0;
+myCIP = (cip*)sim.get_entity( sim.get_entity_id( "CIP" ) );
+Bregs_Busy = false;
+set_Bregs_idle = false;
+read_Memory = false;
+write_to_Mem = false;
+read_block = false;
+write_block = false;
+send_to_Aregs = false;
+send_to_Preg = false;
+blocksize = 0;
+requests = 0;
+replies = 0;
+pkt_to_p.op = 0;
 
-    // reset register values to 0
+// reset register values to 0
 
-    strcpy(reg_value.b_hex.s6, "000000");
-    reg_value.b_int = 0;
-    for (int j =0; j<64; j++)
-    {
-        reg_no = j;
-        BRegs.Update( reg_no, reg_value);
-    }
+strcpy(reg_value.b_hex.s6, "000000");
+reg_value.b_int = 0;
+for (int j =0; j<64; j++)
+{
+    reg_no = j;
+    BRegs.Update( reg_no, reg_value);
+}
 
-    my_state = B_REGS_IDLE;
-    dump_state();
+my_state = B_REGS_IDLE;
+dump_state();
 
 $phase0
 

@@ -10,24 +10,24 @@ $class_decls
 
 // Variable Declarations
 
- bool log_busy;
- int i;
- fn_packet fn_pkt;
- s_2values op_values;
- sh_fn_packet sfn_pkt;
- t_sixtyfour_bit op_value;
+bool log_busy;
+int i;
+fn_packet fn_pkt;
+s_2values op_values;
+sh_fn_packet sfn_pkt;
+t_sixtyfour_bit op_value;
 
- s_struct log_result;		// i = dest_reg, s = 64-bit result
+s_struct log_result;		// i = dest_reg, s = 64-bit result
 
 $class_defs
 
 
 $pre
 
- log_busy = false;
+log_busy = false;
 // strcpy (log_result.s.s16, "0000000000000000");
- my_state = IDLE;
- dump_state();
+my_state = IDLE;
+dump_state();
 
 $phase0
 
@@ -35,66 +35,68 @@ $phase0
 
 // predicates for use in sim_waiting tests
 
- sim_from_port from_S_REGS(from_s_regs);
- sim_from_port from_CIP(from_cip);
+sim_from_port from_S_REGS( from_s_regs );
+sim_from_port from_CIP( from_cip );
 
- my_state = IDLE;  
- if (sim_waiting(ev, from_CIP))
-  {
-   if  (ev.type() == SFN_PKT)
-     {
-      SIM_CAST(sh_fn_packet, sfn_pkt, ev);
-      log_result.reg_no = sfn_pkt.reg_no;
-      switch (sfn_pkt.op)
-       {
-	case 'R':												// 042 64-jk bits of 1's from right
-		ones_mask (log_result.s.s16, ((sfn_pkt.j << 3) | sfn_pkt.k) );
-		break;
+my_state = IDLE;
+if (sim_waiting( ev, from_CIP ))
+{
+    if (ev.type() == SFN_PKT)
+    {
+        SIM_CAST( sh_fn_packet, sfn_pkt, ev );
+        log_result.reg_no = sfn_pkt.reg_no;
+        switch (sfn_pkt.op)
+        {
+        case 'R':												// 042 64-jk bits of 1's from right
+            ones_mask( log_result.s.s16, ((sfn_pkt.j << 3) | sfn_pkt.k) );
+            break;
 
-	case 'L':												// 043 jk bits of 1's from left
-		ones_mask (log_result.s.s16, ((sfn_pkt.j << 3) | sfn_pkt.k) );
-		s_complement(log_result.s.s16 );
-		break;
-       }
-   }
-   if (ev.type() == FN_PKT)
-     {SIM_CAST(fn_packet, fn_pkt, ev);}
-   log_busy = true;
-   my_state = BUSY;
-  }
+        case 'L':												// 043 jk bits of 1's from left
+            ones_mask( log_result.s.s16, ((sfn_pkt.j << 3) | sfn_pkt.k) );
+            s_complement( log_result.s.s16 );
+            break;
+        }
+    }
+    if (ev.type() == FN_PKT)
+    {
+        SIM_CAST( fn_packet, fn_pkt, ev );
+    }
+    log_busy = true;
+    my_state = BUSY;
+}
 
- if (sim_waiting(ev, from_S_REGS))
-  {
-     SIM_CAST(s_2values, op_values, ev);
-     log_result.reg_no = fn_pkt.reg_no;
-     switch (fn_pkt.op[0] )
-      {
-	case '&':												// 044
-	   l_and(op_values.op1.s16,op_values.op2.s16, log_result.s.s16);
-	   break;
-	case '$':												// 045
-	    {s_complement(op_values.op2.s16);}
-	   l_and(op_values.op1.s16,op_values.op2.s16, log_result.s.s16);
-	   break;
-	case 'X':												// 046
-	   l_xor(op_values.op1.s16,op_values.op2.s16, log_result.s.s16);
-	   break;
-	case 'E':												// 047
-	    {s_complement(op_values.op2.s16);}
-	   l_xor(op_values.op1.s16,op_values.op2.s16, log_result.s.s16);
-	   break;
-	case '|':												// 051
-	   l_or(op_values.op1.s16,op_values.op2.s16, log_result.s.s16);
-	   break;
-      }
-  }
- dump_state();
+if (sim_waiting( ev, from_S_REGS ))
+{
+    SIM_CAST( s_2values, op_values, ev );
+    log_result.reg_no = fn_pkt.reg_no;
+    switch (fn_pkt.op[0])
+    {
+    case '&':												// 044
+        l_and( op_values.op1.s16, op_values.op2.s16, log_result.s.s16 );
+        break;
+    case '$':												// 045
+    {s_complement( op_values.op2.s16 ); }
+    l_and( op_values.op1.s16, op_values.op2.s16, log_result.s.s16 );
+    break;
+    case 'X':												// 046
+        l_xor( op_values.op1.s16, op_values.op2.s16, log_result.s.s16 );
+        break;
+    case 'E':												// 047
+    {s_complement( op_values.op2.s16 ); }
+    l_xor( op_values.op1.s16, op_values.op2.s16, log_result.s.s16 );
+    break;
+    case '|':												// 051
+        l_or( op_values.op1.s16, op_values.op2.s16, log_result.s.s16 );
+        break;
+    }
+}
+dump_state();
 
 $phase1
 
- if (log_busy)
-  {
-// printf("S_LOG_U sending result = %s to register %d \n", log_result.s.s16, log_result.reg_no);
+if (log_busy)
+{
+    // printf("S_LOG_U sending result = %s to register %d \n", log_result.s.s16, log_result.reg_no);
     send_S_PKT( to_s_regs, log_result );
     log_busy = false;
-  }
+}

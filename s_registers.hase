@@ -1,7 +1,7 @@
 // Project	Cray 1
 // Entity	S Registers
-// 		s_registers.hase
-// Date 	Jan 2018
+// File     s_registers.hase
+// Date     Jan 2018
 //
 // GLOBALS for this entity are as follows:
 //		RARRAY (s_reg_set , SRegs, 8 );
@@ -11,34 +11,34 @@ $class_decls
 
 // Variable Declarations
 
- bool send_to_Aregs, send_to_Tregs, write_to_Mem;
+bool send_to_Aregs, send_to_Tregs, write_to_Mem;
 
- int old_state;
- int Sregs_Busy;
- int reserved[8];
- int reg_no, m_reg_no,  test_result;
+int old_state;
+int Sregs_Busy;
+int reserved[8];
+int reg_no, m_reg_no, test_result;
 
-int nonzero(int i); //returns 0 if Si=0, 1 otherwise
-int negative(int i);  //returns 0 if Si>=0, 1 otherwise
+int nonzero( int i ); //returns 0 if Si=0, 1 otherwise
+int negative( int i );  //returns 0 if Si>=0, 1 otherwise
 
- a_struct packet_to_a;
- s_struct packet_to_t;
- s_struct s_result; 
- t_s_reg reg_value;
+a_struct packet_to_a;
+s_struct packet_to_t;
+s_struct s_result;
+t_s_reg reg_value;
 
-void set_reservation(int i);
-void unset_reservation(int i);
-void transmit1_T (int i);
-void transmit1_V (int j);
-void send_to_Spop (int j);
-void send_to_Sshift (int i);
-void send_to_Slogic (int i, int j, int k);
-void send_to_Sadd (int i, int j, int k);
-void send_to_Vlogic (int j);
-void send_to_Vadd (int j);
-void send_to_Vmask (int j);
-void send_to_Fadd (int j);
-void send_to_Fmul (int j);
+void set_reservation( int i );
+void unset_reservation( int i );
+void transmit1_T( int i );
+void transmit1_V( int j );
+void send_to_Spop( int j );
+void send_to_Sshift( int i );
+void send_to_Slogic( int i, int j, int k );
+void send_to_Sadd( int i, int j, int k );
+void send_to_Vlogic( int j );
+void send_to_Vadd( int j );
+void send_to_Vmask( int j );
+void send_to_Fadd( int j );
+void send_to_Fmul( int j );
 
 tr_packet tr_pkt;
 tr64_packet tr64_pkt;
@@ -67,8 +67,8 @@ int s_registers::nonzero(int i)
 {
    for (int j = 0; j<element_size; j++)
    {
-      if ( registers[i].s16[j] !='0') 
-	return 1;
+      if ( registers[i].s16[j] !='0')
+    return 1;
    }
    return 0;
 }
@@ -81,14 +81,14 @@ int s_registers::negative(int i)
    return sign_bit;
 }
 */
-void s_registers::set_reservation(int i)
+void s_registers::set_reservation( int i )
 {
-   reg_value = SRegs[i];
-   reserved[i] = 1;
-   SRegs.Update(i, reg_value);
-   Sregs_Busy ++;
-   switch (i)
-   {
+    reg_value = SRegs[i];
+    reserved[i] = 1;
+    SRegs.Update( i, reg_value );
+    Sregs_Busy++;
+    switch (i)
+    {
     case 0: Sres_bits.res0 = 'R'; break;
     case 1: Sres_bits.res1 = 'R'; break;
     case 2: Sres_bits.res2 = 'R'; break;
@@ -97,17 +97,17 @@ void s_registers::set_reservation(int i)
     case 5: Sres_bits.res5 = 'R'; break;
     case 6: Sres_bits.res6 = 'R'; break;
     case 7: Sres_bits.res7 = 'R'; break;
-   }
-   dump_state();
+    }
+    dump_state();
 }
 
-void s_registers::unset_reservation(int i)
+void s_registers::unset_reservation( int i )
 {
-  reserved[i] = 0;
-  Sregs_Busy --;
-  switch (i)
-   {
-   case 0: Sres_bits.res0 = '_';  break;
+    reserved[i] = 0;
+    Sregs_Busy--;
+    switch (i)
+    {
+    case 0: Sres_bits.res0 = '_';  break;
     case 1: Sres_bits.res1 = '_'; break;
     case 2: Sres_bits.res2 = '_'; break;
     case 3: Sres_bits.res3 = '_'; break;
@@ -115,268 +115,310 @@ void s_registers::unset_reservation(int i)
     case 5: Sres_bits.res5 = '_'; break;
     case 6: Sres_bits.res6 = '_'; break;
     case 7: Sres_bits.res7 = '_'; break;
-   }
-   dump_state();
+    }
+    dump_state();
 }
 
-void s_registers::transmit1_T(int i)
+void s_registers::transmit1_T( int i )
 {
-	value = SRegs[i].s_hex;			//  S[i]
-	send_S_1VALUE (to_t_regs, value);
+    value = SRegs[i].s_hex;			//  S[i]
+    send_S_1VALUE( to_t_regs, value );
 }
 
-void s_registers::transmit1_V(int j)
+void s_registers::transmit1_V( int j )
 {
-	value = SRegs[j].s_hex;			//  S[j]
-	send_S_1VALUE (to_v_regs, value);
+    value = SRegs[j].s_hex;			//  S[j]
+    send_S_1VALUE( to_v_regs, value );
 }
 
-void s_registers::send_to_Spop(int j)
+void s_registers::send_to_Spop( int j )
 {
-	send_S_1VALUE( to_s_pop, SRegs[j].s_hex);
+    send_S_1VALUE( to_s_pop, SRegs[j].s_hex );
 }
 
-void s_registers::send_to_Sshift(int i)
+void s_registers::send_to_Sshift( int i )
 {
-	send_S_1VALUE( to_s_shift, SRegs[i].s_hex);
+    send_S_1VALUE( to_s_shift, SRegs[i].s_hex );
 }
 
-void s_registers::send_to_Slogic(int /*i*/, int j, int k)
+void s_registers::send_to_Slogic( int /*i*/, int j, int k )
 {
-        if (j == 0)							//	if j = 0, (S0) = 0
-	   {values_packet.op1 = zero;}
-	else
-	   {values_packet.op1 = SRegs[j].s_hex;}
-	if (k == 0)
-	 {values_packet.op2 =  signbit;}
-	else
-	 {values_packet.op2 = SRegs[k].s_hex;}
-	send_S_2VALUES ( to_s_logic, values_packet);
+    if (j == 0)							//	if j = 0, (S0) = 0
+    {
+        values_packet.op1 = zero;
+    }
+    else
+    {
+        values_packet.op1 = SRegs[j].s_hex;
+    }
+    if (k == 0)
+    {
+        values_packet.op2 = signbit;
+    }
+    else
+    {
+        values_packet.op2 = SRegs[k].s_hex;
+    }
+    send_S_2VALUES( to_s_logic, values_packet );
 }
 
-void s_registers::send_to_Sadd(int /*i*/, int j, int k)							// 060, 061
+void s_registers::send_to_Sadd( int /*i*/, int j, int k )							// 060, 061
 {
-        if (j == 0)							//	if j = 0, (S0) = 0
-	   {values_packet.op1 = zero;}
-	else
-	   {values_packet.op1 = SRegs[j].s_hex;}
-        if (k == 0)							//	if k = 0, (S0) = 1
-	   {values_packet.op2 = one;}
-	else
-	   {values_packet.op2 = SRegs[k].s_hex;}
-	send_S_2VALUES ( to_s_add, values_packet);
+    if (j == 0)							//	if j = 0, (S0) = 0
+    {
+        values_packet.op1 = zero;
+    }
+    else
+    {
+        values_packet.op1 = SRegs[j].s_hex;
+    }
+    if (k == 0)							//	if k = 0, (S0) = 1
+    {
+        values_packet.op2 = one;
+    }
+    else
+    {
+        values_packet.op2 = SRegs[k].s_hex;
+    }
+    send_S_2VALUES( to_s_add, values_packet );
 }
 
-void s_registers::send_to_Vlogic(int j)
+void s_registers::send_to_Vlogic( int j )
 {
-	send_S_1VALUE( to_v_logic, SRegs[j].s_hex);
+    send_S_1VALUE( to_v_logic, SRegs[j].s_hex );
 }
 
-void s_registers::send_to_Vadd(int j)
+void s_registers::send_to_Vadd( int j )
 {
-	send_S_1VALUE( to_v_add, SRegs[j].s_hex);
+    send_S_1VALUE( to_v_add, SRegs[j].s_hex );
 }
 
-void s_registers::send_to_Vmask(int j)
+void s_registers::send_to_Vmask( int j )
 {
-	if (j == 0)
-	 {send_S_1VALUE( to_v_mask, zero);}
-	else
-	 {send_S_1VALUE( to_v_mask, SRegs[j].s_hex);}
+    if (j == 0)
+    {
+        send_S_1VALUE( to_v_mask, zero );
+    }
+    else
+    {
+        send_S_1VALUE( to_v_mask, SRegs[j].s_hex );
+    }
 }
 
-void s_registers::send_to_Fmul(int j)							// 160
+void s_registers::send_to_Fmul( int j )							// 160
 {
-        if (j == 0)							//	if j = 0, (S0) = 0
-	   {send_S_1VALUE( to_f_mul, zero);}
-	else
-	   {send_S_1VALUE ( to_f_mul, SRegs[j].s_hex);}
+    if (j == 0)							//	if j = 0, (S0) = 0
+    {
+        send_S_1VALUE( to_f_mul, zero );
+    }
+    else
+    {
+        send_S_1VALUE( to_f_mul, SRegs[j].s_hex );
+    }
 }
 
-void s_registers::send_to_Fadd(int j)							// 170, 172
+void s_registers::send_to_Fadd( int j )							// 170, 172
 {
-        if (j == 0)							//	if j = 0, (S0) = 0
-	   {send_S_1VALUE( to_f_add, zero);}
-	else
-	   {send_S_1VALUE ( to_f_add, SRegs[j].s_hex);}
+    if (j == 0)							//	if j = 0, (S0) = 0
+    {
+        send_S_1VALUE( to_f_add, zero );
+    }
+    else
+    {
+        send_S_1VALUE( to_f_add, SRegs[j].s_hex );
+    }
 }
 
 
 $pre
 
-strcpy(a_pkt.a.s6, "000000");
-strcpy(one.s16,    "0000000000000001");
-strcpy(zero.s16,    "0000000000000000");
-strcpy(signbit.s16, "8000000000000000");
-strcpy(floatzero.s16,    "0000000000000000");
-strcpy(floatsignbit.s16, "8000000000000000");
+strcpy( a_pkt.a.s6, "000000" );
+strcpy( one.s16, "0000000000000001" );
+strcpy( zero.s16, "0000000000000000" );
+strcpy( signbit.s16, "8000000000000000" );
+strcpy( floatzero.s16, "0000000000000000" );
+strcpy( floatsignbit.s16, "8000000000000000" );
 
 // reset busy bits and reset register values to 0
 
- send_to_Aregs = false;
- send_to_Tregs = false;
- write_to_Mem = false;
+send_to_Aregs = false;
+send_to_Tregs = false;
+write_to_Mem = false;
 
- strcpy(mem_address.s5, "00000");
- strcpy(reg_value.s_hex.s16, "0000000000000000");
- reg_value.s_int = 0;
- for (reg_no=0; reg_no<8; reg_no++)
-  {SRegs.Update( reg_no, reg_value);}
+strcpy( mem_address.s5, "00000" );
+strcpy( reg_value.s_hex.s16, "0000000000000000" );
+reg_value.s_int = 0;
+for (reg_no = 0; reg_no < 8; reg_no++)
+{
+    SRegs.Update( reg_no, reg_value );
+}
 
- Sregs_Busy = 0;
- my_state = S_REGS_IDLE;
- old_state = S_REGS_IDLE;
- dump_state();
+Sregs_Busy = 0;
+my_state = S_REGS_IDLE;
+old_state = S_REGS_IDLE;
+dump_state();
 
 $phase0
 
 // predicates for use in sim_waiting tests
 
- sim_from_port from_CIP (from_cip);
- sim_from_port from_Memory (from_memory);
- sim_from_port from_S_SHIFT (from_s_shift);
- sim_from_port from_S_LOGIC (from_s_logic);
- sim_from_port from_S_ADD (from_s_add);
- sim_from_port from_VM (from_v_mask);
- sim_from_port from_Aregs (from_a_regs);
- sim_from_port from_Tregs (from_t_regs);
- sim_from_port from_Vregs (from_v_regs);
+sim_from_port from_CIP( from_cip );
+sim_from_port from_Memory( from_memory );
+sim_from_port from_S_SHIFT( from_s_shift );
+sim_from_port from_S_LOGIC( from_s_logic );
+sim_from_port from_S_ADD( from_s_add );
+sim_from_port from_VM( from_v_mask );
+sim_from_port from_Aregs( from_a_regs );
+sim_from_port from_Tregs( from_t_regs );
+sim_from_port from_Vregs( from_v_regs );
 
 
- if (sim_waiting(ev, from_CIP))
-   {
+if (sim_waiting( ev, from_CIP ))
+{
     if (ev.type() == TR_PKT)									// 023
-     {
-      SIM_CAST (tr_packet, tr_pkt, ev);
-      if (tr_pkt.type == StoA)
-       {
-	packet_to_a.reg_no = tr_pkt.i;
-	for ( int i = 0; i<6; i++)
-	{packet_to_a.a.s6[i] = SRegs[tr_pkt.j].s_hex.s16[i+10];}
-	send_to_Aregs = true;
-       }
-     }
+    {
+        SIM_CAST( tr_packet, tr_pkt, ev );
+        if (tr_pkt.type == StoA)
+        {
+            packet_to_a.reg_no = tr_pkt.i;
+            for (int i = 0; i < 6; i++)
+            {
+                packet_to_a.a.s6[i] = SRegs[tr_pkt.j].s_hex.s16[i + 10];
+            }
+            send_to_Aregs = true;
+        }
+    }
     else if (ev.type() == TR64_PKT)								// 040, 041
-     {
-      SIM_CAST (tr64_packet, tr64_pkt, ev);
-      reg_no = tr64_pkt.i;
-      reg_value.s_hex = tr64_pkt.s;
-      reg_value.s_int = string_to_long(tr64_pkt.s.s16, 16);
-      SRegs.Update( reg_no, reg_value);
-      unset_reservation(reg_no);
-     }
+    {
+        SIM_CAST( tr64_packet, tr64_pkt, ev );
+        reg_no = tr64_pkt.i;
+        reg_value.s_hex = tr64_pkt.s;
+        reg_value.s_int = string_to_long( tr64_pkt.s.s16, 16 );
+        SRegs.Update( reg_no, reg_value );
+        unset_reservation( reg_no );
+    }
     else  if (ev.type() == RS_PKT)									// 12h
-      {
-	SIM_CAST (rs_packet, rs_pkt, ev); 
-	if (rs_pkt.op == 12)
-	 {m_reg_no = rs_pkt.i_reg;}
-      }
-   }
+    {
+        SIM_CAST( rs_packet, rs_pkt, ev );
+        if (rs_pkt.op == 12)
+        {
+            m_reg_no = rs_pkt.i_reg;
+        }
+    }
+}
 
- if (sim_waiting(ev, from_Aregs))									// 13h
-      {
-	SIM_CAST (rs_packet, rs_pkt, ev); 
-	for (int i=4; i>0; i--)
-	{mem_address.s5[i] = rs_pkt.a.s6[i+1];}
-	mem_write_pkt.address = mem_address;
-	mem_write_pkt.st = SRegs[rs_pkt.i_reg].s_hex;
-	unset_reservation(rs_pkt.i_reg);
-	write_to_Mem = true;
-      }
+if (sim_waiting( ev, from_Aregs ))									// 13h
+{
+    SIM_CAST( rs_packet, rs_pkt, ev );
+    for (int i = 4; i > 0; i--)
+    {
+        mem_address.s5[i] = rs_pkt.a.s6[i + 1];
+    }
+    mem_write_pkt.address = mem_address;
+    mem_write_pkt.st = SRegs[rs_pkt.i_reg].s_hex;
+    unset_reservation( rs_pkt.i_reg );
+    write_to_Mem = true;
+}
 
-    if (sim_waiting(ev, from_Memory))
-   {
-   SIM_CAST(t_sixtyfour_bit, mem_value, ev);
+if (sim_waiting( ev, from_Memory ))
+{
+    SIM_CAST( t_sixtyfour_bit, mem_value, ev );
     reg_no = m_reg_no;
     reg_value.s_hex = mem_value;
-//		 printf("S_REGS getting value %s from Memory \n", reg_value.s_hex.s16);
-    reg_value.s_int = string_to_int(mem_value.s16, 16);
-    SRegs.Update( reg_no, reg_value);
-    unset_reservation(reg_no);
-   }
+    //		 printf("S_REGS getting value %s from Memory \n", reg_value.s_hex.s16);
+    reg_value.s_int = string_to_int( mem_value.s16, 16 );
+    SRegs.Update( reg_no, reg_value );
+    unset_reservation( reg_no );
+}
 
-     if (sim_waiting(ev, from_S_SHIFT) )							// 054, 055
-   {
-    SIM_CAST(s_struct, s_result , ev);
+if (sim_waiting( ev, from_S_SHIFT ))							// 054, 055
+{
+    SIM_CAST( s_struct, s_result, ev );
     reg_no = s_result.reg_no;
     reg_value.s_hex = s_result.s;
-//		 printf("S_REGS getting SHIFT result %s for register %d  \n", reg_value.s_hex.s16, reg_no);
-    reg_value.s_int = string_to_long(s_result.s.s16, 16);
-    SRegs.Update( reg_no, reg_value);
-   unset_reservation(reg_no);
-   }
+    //		 printf("S_REGS getting SHIFT result %s for register %d  \n", reg_value.s_hex.s16, reg_no);
+    reg_value.s_int = string_to_long( s_result.s.s16, 16 );
+    SRegs.Update( reg_no, reg_value );
+    unset_reservation( reg_no );
+}
 
-   if (sim_waiting(ev, from_S_LOGIC) )							// 042-047
-   {
-    SIM_CAST(s_struct, s_result , ev);
+if (sim_waiting( ev, from_S_LOGIC ))							// 042-047
+{
+    SIM_CAST( s_struct, s_result, ev );
     reg_no = s_result.reg_no;
     reg_value.s_hex = s_result.s;
-//		 printf("S_REGS getting LOGIC result %s for register %d  \n", reg_value.s_hex.s16, reg_no);
-    reg_value.s_int = string_to_long(s_result.s.s16, 16);
-    SRegs.Update( reg_no, reg_value);
-   unset_reservation(reg_no);
-   }
+    //		 printf("S_REGS getting LOGIC result %s for register %d  \n", reg_value.s_hex.s16, reg_no);
+    reg_value.s_int = string_to_long( s_result.s.s16, 16 );
+    SRegs.Update( reg_no, reg_value );
+    unset_reservation( reg_no );
+}
 
-   if (sim_waiting(ev, from_S_ADD) )							// 060, 061
-   {
-    SIM_CAST(s_struct, s_result , ev);
+if (sim_waiting( ev, from_S_ADD ))							// 060, 061
+{
+    SIM_CAST( s_struct, s_result, ev );
     reg_no = s_result.reg_no;
     reg_value.s_hex = s_result.s;
-//		 printf("S_REGS getting ADD result %s for register %d  \n", reg_value.s_hex.s16, reg_no);
-    reg_value.s_int = string_to_long(s_result.s.s16, 16);
-    SRegs.Update( reg_no, reg_value);
-   unset_reservation(reg_no);
-   }
+    //		 printf("S_REGS getting ADD result %s for register %d  \n", reg_value.s_hex.s16, reg_no);
+    reg_value.s_int = string_to_long( s_result.s.s16, 16 );
+    SRegs.Update( reg_no, reg_value );
+    unset_reservation( reg_no );
+}
 
- if (sim_waiting(ev, from_VM))								// 073
-   {
-    SIM_CAST(s_struct, s_result , ev);
+if (sim_waiting( ev, from_VM ))								// 073
+{
+    SIM_CAST( s_struct, s_result, ev );
     reg_no = s_result.reg_no;
     reg_value.s_hex = s_result.s;
-//		 printf("S_REGS getting result %s from VM \n", reg_value.s_hex.s16);
-    reg_value.s_int = string_to_long(s_result.s.s16, 16);
-//printf("S_REGS getting result from VM, integer value = %lu \n", string_to_long(s_result.s.s16, 16));
-    SRegs.Update( reg_no, reg_value);
-    unset_reservation(reg_no);
-   }
+    //		 printf("S_REGS getting result %s from VM \n", reg_value.s_hex.s16);
+    reg_value.s_int = string_to_long( s_result.s.s16, 16 );
+    //printf("S_REGS getting result from VM, integer value = %lu \n", string_to_long(s_result.s.s16, 16));
+    SRegs.Update( reg_no, reg_value );
+    unset_reservation( reg_no );
+}
 
- if ( (sim_waiting(ev, from_Tregs))	||  (sim_waiting(ev, from_Vregs)) )		// 074, 076
-   {
-    SIM_CAST(s_struct, s_result , ev);
+if ((sim_waiting( ev, from_Tregs )) || (sim_waiting( ev, from_Vregs )))		// 074, 076
+{
+    SIM_CAST( s_struct, s_result, ev );
     reg_no = s_result.reg_no;
     reg_value.s_hex = s_result.s;
-//		 printf("S_REGS getting result %s from Tregs/Vregs \n", reg_value.s_hex.s16);
-    reg_value.s_int = string_to_long(s_result.s.s16, 16);
-    SRegs.Update( reg_no, reg_value);
-    unset_reservation(reg_no);
-   }
+    //		 printf("S_REGS getting result %s from Tregs/Vregs \n", reg_value.s_hex.s16);
+    reg_value.s_int = string_to_long( s_result.s.s16, 16 );
+    SRegs.Update( reg_no, reg_value );
+    unset_reservation( reg_no );
+}
 
 //	printf("S_registers: Sregs_Busy = %d \n", Sregs_Busy);
- if (Sregs_Busy > 0)
-  {my_state = S_REGS_BUSY;}
- else
-  {my_state = S_REGS_IDLE;}
- if (my_state != old_state)
-  {dump_state();
-   old_state = my_state;}
- 
+if (Sregs_Busy > 0)
+{
+    my_state = S_REGS_BUSY;
+}
+else
+{
+    my_state = S_REGS_IDLE;
+}
+if (my_state != old_state)
+{
+    dump_state();
+    old_state = my_state;
+}
+
 $phase1
 
- if (send_to_Aregs)
-  {
-   send_A_PKT(to_a_regs, packet_to_a); 	
-   send_to_Aregs = false;
-  }
+if (send_to_Aregs)
+{
+    send_A_PKT( to_a_regs, packet_to_a );
+    send_to_Aregs = false;
+}
 
- if (send_to_Tregs)
-  {
-   send_S_PKT(to_t_regs, packet_to_t); 		
-   send_to_Tregs = false;
-  }
+if (send_to_Tregs)
+{
+    send_S_PKT( to_t_regs, packet_to_t );
+    send_to_Tregs = false;
+}
 
- if (write_to_Mem)
-  {
-printf("S_registers: sending write packet to Memory, address = %s \n", mem_write_pkt.address.s5);
-   send_WRITE64_PKT(to_memory, mem_write_pkt);
-   write_to_Mem = false;
-  }
+if (write_to_Mem)
+{
+    printf( "S_registers: sending write packet to Memory, address = %s \n", mem_write_pkt.address.s5 );
+    send_WRITE64_PKT( to_memory, mem_write_pkt );
+    write_to_Mem = false;
+}

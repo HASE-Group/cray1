@@ -10,67 +10,73 @@ $class_decls
 
 // Variable Declarations
 
- bool pop_busy0, pop_busy1, pop_busy2;
- int i, result;
+bool pop_busy0, pop_busy1, pop_busy2;
+int i, result;
 long int_value;
- t_sixtyfour_bit op_value;
- fn_packet fn_pkt;
- a_struct pop_result[3];		// i = dest_reg, s = 64-bit result
+t_sixtyfour_bit op_value;
+fn_packet fn_pkt;
+a_struct pop_result[3];		// i = dest_reg, s = 64-bit result
 
- void perform_pop();
- void perform_zero();
+void perform_pop();
+void perform_zero();
 
 $class_defs
 
 void s_pop_u::perform_pop()
 {
-  result = 0;
-  int_value = string_to_long(op_value.s16, 16);
-printf("S_POP_U: initial int_value = %ld \n", int_value);
-  for (i=0; i<64; i++)
-   {
-     if ((int_value & 1) == 1)
-      {result ++;}
-     int_value = int_value >> 1;
-   }
-printf("S_POP_U: population count = %d \n", result);
-  for (i=5; i>=0; i--)
-   {
-     pop_result[0].a.s6[i] = hex_to_char(result & 15);
-     result = result >> 4;
+    result = 0;
+    int_value = string_to_long( op_value.s16, 16 );
+    printf( "S_POP_U: initial int_value = %ld \n", int_value );
+    for (i = 0; i < 64; i++)
+    {
+        if ((int_value & 1) == 1)
+        {
+            result++;
+        }
+        int_value = int_value >> 1;
+    }
+    printf( "S_POP_U: population count = %d \n", result );
+    for (i = 5; i >= 0; i--)
+    {
+        pop_result[0].a.s6[i] = hex_to_char( result & 15 );
+        result = result >> 4;
     }
 }
 
 void s_pop_u::perform_zero()
 {
-  int_value = string_to_long(op_value.s16, 16);
-  if (int_value < 0)
-   {result = 0;}
-  else if (int_value == 0)
-   {result = 64;}  
-else
-   {
-    result = 0;
-    while  (int_value > 0)
-     {
-      result ++;
-      int_value = int_value << 1;
-      }
+    int_value = string_to_long( op_value.s16, 16 );
+    if (int_value < 0)
+    {
+        result = 0;
     }
-  for (i=5; i>=0; i--)
-   {
-     pop_result[0].a.s6[i] = hex_to_char(result & 15);
-     result = result >> 4;
+    else if (int_value == 0)
+    {
+        result = 64;
+    }
+    else
+    {
+        result = 0;
+        while (int_value > 0)
+        {
+            result++;
+            int_value = int_value << 1;
+        }
+    }
+    for (i = 5; i >= 0; i--)
+    {
+        pop_result[0].a.s6[i] = hex_to_char( result & 15 );
+        result = result >> 4;
     }
 }
 
 $pre
 
- pop_busy0 = false;
- pop_busy1 = false;
- pop_busy2 = false;
- my_state = IDLE;
- dump_state();
+pop_busy0 = false;
+pop_busy1 = false;
+pop_busy2 = false;
+my_state = IDLE;
+dump_state();
 
 $phase0
 
@@ -78,53 +84,57 @@ $phase0
 
 // predicates for use in sim_waiting tests
 
- sim_from_port from_S_REGS(from_s_regs);
- sim_from_port from_CIP(from_cip);
+sim_from_port from_S_REGS( from_s_regs );
+sim_from_port from_CIP( from_cip );
 
- pop_busy2 = pop_busy1;
- pop_busy1 = pop_busy0;
- pop_busy0 = false;
- pop_result[2] = pop_result[1];
- pop_result[1] = pop_result[0];
-if (sim_waiting(ev, from_CIP))
-  {
-   SIM_CAST(fn_packet, fn_pkt, ev);
-   pop_busy0 = true;
-			 printf("S_pop_U getting %c instruction from CIP\n", fn_pkt.op[0]);
-  }
+pop_busy2 = pop_busy1;
+pop_busy1 = pop_busy0;
+pop_busy0 = false;
+pop_result[2] = pop_result[1];
+pop_result[1] = pop_result[0];
+if (sim_waiting( ev, from_CIP ))
+{
+    SIM_CAST( fn_packet, fn_pkt, ev );
+    pop_busy0 = true;
+    printf( "S_pop_U getting %c instruction from CIP\n", fn_pkt.op[0] );
+}
 
- if (pop_busy0 || pop_busy1 || pop_busy2)
-  {my_state = BUSY;}
- else
-  {my_state = IDLE; }
+if (pop_busy0 || pop_busy1 || pop_busy2)
+{
+    my_state = BUSY;
+}
+else
+{
+    my_state = IDLE;
+}
 
-if (sim_waiting(ev, from_S_REGS))
-  {
-    SIM_CAST(t_sixtyfour_bit, op_value, ev);
-printf("S_POP_U getting operand \n");
-   switch (fn_pkt.op[0] )
-     {
-	case 'P':
-	   perform_pop();
-	   break;
-	case 'Z':
-	   perform_zero();
-	   break;
-     }
+if (sim_waiting( ev, from_S_REGS ))
+{
+    SIM_CAST( t_sixtyfour_bit, op_value, ev );
+    printf( "S_POP_U getting operand \n" );
+    switch (fn_pkt.op[0])
+    {
+    case 'P':
+        perform_pop();
+        break;
+    case 'Z':
+        perform_zero();
+        break;
+    }
     pop_result[0].reg_no = fn_pkt.reg_no;
-printf("S_POP_U result = %s \n", pop_result[0].a.s6);
-  }
-  dump_state();
+    printf( "S_POP_U result = %s \n", pop_result[0].a.s6 );
+}
+dump_state();
 
 $phase1
 
 // if pop_busy2 is set, send output to S regs
 
- if (pop_busy2)
-  {
-   sim_hold(5);
-   printf("S_POP_U: sending pop output = %s \n", pop_result[2].a.s6);
+if (pop_busy2)
+{
+    sim_hold( 5 );
+    printf( "S_POP_U: sending pop output = %s \n", pop_result[2].a.s6 );
     send_A_PKT( to_a_regs, pop_result[2] );
     pop_busy2 = false;
-   }
+}
 

@@ -1,6 +1,6 @@
-// Project		Cray 1
-// Entity		Vector Shift Unit
-// File		 v_shift.hase
+// Project	Cray 1
+// Entity	Vector Shift Unit
+// File		v_shift.hase
 // Date		September 2018
 //
 // Performs shift left and shift right operations
@@ -10,21 +10,21 @@ $class_decls
 
 // Variable Declarations
 
- bool shift_busy0, shift_busy1;
- int i;
- t_twentyfour_bit  shift_distance;
- t_sixtyfour_bit op_value;
- fn_packet fn_pkt;
- s_struct shift_result[2];		// i = dest_reg, s = 64-bit result
+bool shift_busy0, shift_busy1;
+int i;
+t_twentyfour_bit  shift_distance;
+t_sixtyfour_bit op_value;
+fn_packet fn_pkt;
+s_struct shift_result[2];		// i = dest_reg, s = 64-bit result
 
 $class_defs
 
 $pre
 
- shift_busy0 = false;
- shift_busy1 = false;
- my_state = IDLE;
- dump_state();
+shift_busy0 = false;
+shift_busy1 = false;
+my_state = IDLE;
+dump_state();
 
 $phase0
 
@@ -32,57 +32,64 @@ $phase0
 
 // predicates for use in sim_waiting tests
 
- sim_from_port from_A_REGS(from_a_regs);
- sim_from_port from_V_REGS(from_v_regs);
- sim_from_port from_CIP(from_cip);
+sim_from_port from_A_REGS( from_a_regs );
+sim_from_port from_V_REGS( from_v_regs );
+sim_from_port from_CIP( from_cip );
 
- shift_busy1 = shift_busy0;
- shift_busy0 = false;
- shift_result[1] = shift_result[0];
- if (sim_waiting(ev, from_CIP))
-  {   SIM_CAST(fn_packet, fn_pkt, ev);
-			 printf("V_SHIFT_U getting instruction from CIP\n");
-  }
+shift_busy1 = shift_busy0;
+shift_busy0 = false;
+shift_result[1] = shift_result[0];
+if (sim_waiting( ev, from_CIP ))
+{
+    SIM_CAST( fn_packet, fn_pkt, ev );
+    printf( "V_SHIFT_U getting instruction from CIP\n" );
+}
 
 
-if (sim_waiting(ev, from_A_REGS))
-  {SIM_CAST (t_twentyfour_bit, shift_distance, ev);}
+if (sim_waiting( ev, from_A_REGS ))
+{
+    SIM_CAST( t_twentyfour_bit, shift_distance, ev );
+}
 
-if (sim_waiting(ev, from_V_REGS))
-  {
-    SIM_CAST(t_sixtyfour_bit, op_value, ev);
+if (sim_waiting( ev, from_V_REGS ))
+{
+    SIM_CAST( t_sixtyfour_bit, op_value, ev );
     shift_busy0 = true;
-    switch (fn_pkt.op[0] )
-     {
-	case '<':											// 150
-	   shift_result[0].reg_no = fn_pkt.reg_no;
-	   shift_left (op_value.s16, shift_result[0].s.s16, string_to_int(shift_distance.s6, 6));
-	   shift_busy0 = true;
-//printf("V_SHIFT_U l %s = %s shifted left %d places \n", shift_result[0].s.s16, op_value.s16, shift_distance);
-	   break;
+    switch (fn_pkt.op[0])
+    {
+    case '<':											// 150
+        shift_result[0].reg_no = fn_pkt.reg_no;
+        shift_left( op_value.s16, shift_result[0].s.s16, string_to_int( shift_distance.s6, 6 ) );
+        shift_busy0 = true;
+        //printf("V_SHIFT_U l %s = %s shifted left %d places \n", shift_result[0].s.s16, op_value.s16, shift_distance);
+        break;
 
-	case '>':											// 151
-	   shift_result[0].reg_no = fn_pkt.reg_no;
-	   shift_right (op_value.s16, shift_result[0].s.s16, string_to_int(shift_distance.s6, 6));
-	   shift_busy0 = true;
-//printf("V_SHIFT_U r %s = %s shifted right %d places \n", shift_result[0].s.s16, op_value.s16, shift_distance);
-	   break;
+    case '>':											// 151
+        shift_result[0].reg_no = fn_pkt.reg_no;
+        shift_right( op_value.s16, shift_result[0].s.s16, string_to_int( shift_distance.s6, 6 ) );
+        shift_busy0 = true;
+        //printf("V_SHIFT_U r %s = %s shifted right %d places \n", shift_result[0].s.s16, op_value.s16, shift_distance);
+        break;
     }
-  }
-  if (shift_busy0 || shift_busy1)
-  {my_state = BUSY;}
- else
-  {my_state = IDLE; }
- dump_state();
+}
+if (shift_busy0 || shift_busy1)
+{
+    my_state = BUSY;
+}
+else
+{
+    my_state = IDLE;
+}
+dump_state();
 
 $phase1
 
 // if shift_busy1 is set, send output to S regs
 
- if (shift_busy1)
-  {
-   sim_hold(5);
-   send_S_PKT( to_v_regs, shift_result[1] );
-   shift_busy1 = false;
-  }
+if (shift_busy1)
+{
+    sim_hold( 5 );
+    send_S_PKT( to_v_regs, shift_result[1] );
+    shift_busy1 = false;
+}
 
