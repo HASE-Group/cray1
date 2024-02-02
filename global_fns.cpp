@@ -136,7 +136,7 @@ int string_to_int(char* str, int length)
         printf( "Warning - string_to_int called with string of length zero!\n" );
         return 0;
     }
-    if( uSize < length )
+    if( uSize < (size_t)length )
     {
         printf( "Warning - string_to_int called with shorter string than expected!\n" );
         length = (int)uSize;
@@ -171,7 +171,7 @@ long int string_to_long(char* str, int length)
         printf( "Warning - string_to_long called with string of length zero!\n" );
         return 0;
     }
-    if( uSize < length )
+    if( uSize < (size_t)length )
     {
         printf( "Warning - string_to_long called with shorter string than expected!\n" );
         length = (int)uSize;

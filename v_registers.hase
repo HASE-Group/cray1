@@ -44,7 +44,7 @@ vector_reg* myVReg7;
  bool reset_Vshift_busy, reset_Vlogic_busy, reset_Vadd_busy, reset_Fmul_busy, reset_Fadd_busy;
 
  int old_state;
- int element;
+// int element;
  int no_of_elements;
  int test_result;
  int MV_reg_no, VM_reg_no, requests, replies;
@@ -65,7 +65,8 @@ int negative(int i);  //returns 0 if Si>=0, 1 otherwise
  a_struct packet_to_a;
  s_struct packet_to_s;
  s_struct s_result; 
- t_v_element reg_value, Vadd_reg_value, Vlog_reg_value, Vshf_reg_value, Vtr_reg_value;
+ t_v_element Vadd_reg_value, Vlog_reg_value, Vshf_reg_value, Vtr_reg_value;
+ t_v_element reg_value;
  t_v_element Fadd_reg_value, Fmul_reg_value;
  a_2values op_values;
 
@@ -255,33 +256,33 @@ t_sixtyfour_bit  v_registers::get_value (int reg_no, int element)
    return zero;
 }
 
-void v_registers::write_value (int reg_no, int element, t_v_element reg_value)
+void v_registers::write_value (int reg_no, int element, t_v_element reg_val)
 {
  switch (reg_no)
   {
    case 0:
-	myVReg0->vector_register.Update(element, reg_value);
+	myVReg0->vector_register.Update(element, reg_val);
 	break;
    case 1:
-	myVReg1->vector_register.Update(element, reg_value);
+	myVReg1->vector_register.Update(element, reg_val);
 	break;
    case 2:
-	myVReg2->vector_register.Update(element, reg_value);
+	myVReg2->vector_register.Update(element, reg_val);
 	break;
    case 3:
-	myVReg3->vector_register.Update(element, reg_value);
+	myVReg3->vector_register.Update(element, reg_val);
 	break;
    case 4:
-	myVReg4->vector_register.Update(element, reg_value);
+	myVReg4->vector_register.Update(element, reg_val);
 	break;
    case 5:
-	myVReg5->vector_register.Update(element, reg_value);
+	myVReg5->vector_register.Update(element, reg_val);
 	break;
    case 6:
-	myVReg6->vector_register.Update(element, reg_value);
+	myVReg6->vector_register.Update(element, reg_val);
 	break;
    case 7:
-	myVReg7->vector_register.Update(element, reg_value);
+	myVReg7->vector_register.Update(element, reg_val);
 	break;
 /*
    case 0:
@@ -555,7 +556,6 @@ strcpy(floatsignbit.s16, "8000000000000000");
  myVReg5->setI();
  myVReg6->setI();
  myVReg7->setI();
-
  strcpy(reg_value.v_hex.s16, "0000000000000000");
  reg_value.v_int = 0;
  for (int e=0; e<64; e++)

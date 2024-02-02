@@ -29,7 +29,8 @@ bool memory_busy, send_to_memory;
 bool get_parcel, diff_buff_delay, nip_ready, send_instruction, next_word_to_nip, parcel_to_lip;
 bool stop_send;
 
-int dec_addr, line, parcel;
+int dec_addr;//, line, parcel;
+int active_line, active_parcel;
 int ack;
 int block;
 int int_i_address, int_mem_address, int_buff_address;
@@ -42,7 +43,7 @@ t_sixteen_bit buff_address, mem_address;
 t_twenty_bit memory_address;
 t_twentyfour_bit instruction_address;
 t_sixtyfour_bit empty_line;
-t_four_words buff_input, buff_update;
+t_four_words buff_input;//, buff_update;
 
 //int memory_busy;
 //int next_word_to_nip; 
@@ -91,7 +92,7 @@ void i_buffers::copy_into_ip( int line, int parcel)
 
 void i_buffers::update_buffers(t_four_words buff_update)
 {
-    line = char_to_hex(buff_update.address[4]);     // line number in buffer of first word in block of 
+    int line = char_to_hex(buff_update.address[4]);     // line number in buffer of first word in block of 
     // 4 64-bit words from memory
     if ( matches( BAR[0].s4, buff_update.address))
     {
@@ -149,6 +150,8 @@ stop_send = false;
 block = 0;
 current_buffer = 0;
 next_buffer = 0;
+active_line = 0;
+active_parcel = 0;
 
 strcpy(status, "----");
 
@@ -199,7 +202,7 @@ if (sim_waiting(ev, from_Memory))
     {
         SIM_CAST(t_four_words, buff_input, ev);
         update_buffers(buff_input);
-        copy_into_ip (line, parcel);
+        copy_into_ip (active_line, active_parcel);
         //           copy_into_ip( instruction_address.s6);
         block ++;
     }
@@ -269,8 +272,8 @@ if (get_parcel)
     }
 
     // form line and parcel values
-    line = (int_i_address & 60) >> 2;
-    parcel = int_i_address & 3;
+    active_line = (int_i_address & 60) >> 2;
+    active_parcel = int_i_address & 3;
 
     strcpy(status, "----");
 
@@ -279,7 +282,7 @@ if (get_parcel)
         //printf("IB: BAR match - buff_address = %s in BAR %d \n", buff_address.s4, current_buffer);
         strcpy (status, "IB-S");
         dump_state();
-        copy_into_ip (line, parcel);
+        copy_into_ip (active_line, active_parcel);
     }
 
     else
@@ -293,7 +296,7 @@ if (get_parcel)
                 strcpy (status, "IB-D");
                 dump_state();
                 diff_buff_delay = true;
-                copy_into_ip (line, parcel);
+                copy_into_ip (active_line, active_parcel);
             }
         }
     }

@@ -204,38 +204,38 @@ t_twentyfour_bit cip::jk_immed24(int j, int k)
   return immediate;
 }
 
-t_twentyfour_bit cip::jkm_immed24(int j, int k, t_sixteen_bit m)
+t_twentyfour_bit cip::jkm_immed24(int j, int k, t_sixteen_bit m16b)
 {
   t_twentyfour_bit immediate;
-    immediate.s6[5] = m.s4[3];
-    immediate.s6[4] = m.s4[2];
-    immediate.s6[3] = m.s4[1];
-    immediate.s6[2] = m.s4[0];
+    immediate.s6[5] = m16b.s4[3];
+    immediate.s6[4] = m16b.s4[2];
+    immediate.s6[3] = m16b.s4[1];
+    immediate.s6[2] = m16b.s4[0];
     immediate.s6[1] = hex_to_char( k + (j & 1)*8 ); 
     immediate.s6[0] = hex_to_char( j >> 1);
   return immediate;
 }
 
-t_twentyfour_bit cip::ijkm_immed24(int i, int j, int k, t_sixteen_bit m)
+t_twentyfour_bit cip::ijkm_immed24(int i, int j, int k, t_sixteen_bit m16b)
 {
   t_twentyfour_bit immediate;
-    immediate.s6[5] = m.s4[3];
-    immediate.s6[4] = m.s4[2];
-    immediate.s6[3] = m.s4[1];
-    immediate.s6[2] = m.s4[0];
+    immediate.s6[5] = m16b.s4[3];
+    immediate.s6[4] = m16b.s4[2];
+    immediate.s6[3] = m16b.s4[1];
+    immediate.s6[2] = m16b.s4[0];
     immediate.s6[1] = hex_to_char( k + (j & 1)*8 ); 
     immediate.s6[0] = hex_to_char( (j >>1) + (i & 3)*4 );
   return immediate;
 }
 
-t_sixtyfour_bit cip::jkm_immed64(int j, int k, t_sixteen_bit m)
+t_sixtyfour_bit cip::jkm_immed64(int j, int k, t_sixteen_bit m16b)
 {
   t_sixtyfour_bit immediate;
     strcpy(immediate.s16, "0000000000000000");
-    immediate.s16[15] = m.s4[3];
-    immediate.s16[14] = m.s4[2];
-    immediate.s16[13] = m.s4[1];
-    immediate.s16[12] = m.s4[0];
+    immediate.s16[15] = m16b.s4[3];
+    immediate.s16[14] = m16b.s4[2];
+    immediate.s16[13] = m16b.s4[1];
+    immediate.s16[12] = m16b.s4[0];
     immediate.s16[11] = hex_to_char( k + (j%2)*8 ); 
     immediate.s16[10] = hex_to_char( j /2 );
   return immediate;

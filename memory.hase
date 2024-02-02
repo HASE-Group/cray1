@@ -24,7 +24,7 @@ t_registers * myTregs;
  bool mem_busy_i;
  bool send_to_a, send_to_b, send_to_s, send_to_t, send_to_v, send_to_i;
 
- int i, i_block;
+ int i_block;
  int reg_no,  words, index;
 
 int instruction;
@@ -33,7 +33,7 @@ int any_req;
 
 t_mem_read read_request;
 t_mem_request MemReqBuff[4];
-t_twenty_bit i_word_address, address, m_address;
+t_twenty_bit i_word_address, address;//, m_address;
 t_twentyfour_bit data24_pkt;
 t_sixtyfour_bit mem_word, address_line, mem_value;
 t_sixtyfour_bit data64_pkt;
@@ -101,7 +101,7 @@ void memory::read_instructions()
 {
    strcpy (pkt_for_ibuffer.address, i_word_address.s5);
 
-   for ( i =0; i<4; i++)
+   for ( int i =0; i<4; i++)
    {
      strcpy(pkt_for_ibuffer.word0.s16, main_mem[mem_index + mem_block ].s16);
      strcpy(pkt_for_ibuffer.word1.s16, main_mem[mem_index+ mem_block +1].s16);
@@ -126,7 +126,7 @@ send_to_v = false;
 send_to_i = false;
 mem_busy_i = false;
 
- for (i=0; i<4; i++)
+ for (int i=0; i<4; i++)
  { MemReqBuff[i].Type = 'E';}
 
 //-------------- initialise global variables ----------------//
@@ -179,7 +179,7 @@ sim_from_port control(from_cip);
     if (MemReqBuff[3].Type == 'A')
      {
       data64_pkt = main_mem[string_to_int(MemReqBuff[3].address.s5, 5)];
-      for (i=5; i>=0; i--)									// truncate 64-bit word to 24 bits
+      for (int i=5; i>=0; i--)									// truncate 64-bit word to 24 bits
        {data24_pkt.s6[i] = data64_pkt.s16[i+10];}
  printf("MEMORY: last buffer contains A request, address  = %s, int address =  %d, value = %s \n", MemReqBuff[3].address.s5, string_to_int(MemReqBuff[3].address.s5, 5), data64_pkt.s16);
       send_to_a = true;
@@ -188,7 +188,7 @@ sim_from_port control(from_cip);
     if (MemReqBuff[3].Type == 'B')
      {
       data64_pkt = main_mem[string_to_int(MemReqBuff[3].address.s5, 5)];
-      for (i=5; i>=0; i--)									// truncate 64-bit word to 24 bits
+      for (int i=5; i>=0; i--)									// truncate 64-bit word to 24 bits
        {data24_pkt.s6[i] = data64_pkt.s16[i+10];}
  //printf("MEMORY: last buffer contains B request, address  = %s \n", MemReqBuff[3].address.s5);
       send_to_b = true;
