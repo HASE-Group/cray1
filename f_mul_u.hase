@@ -48,7 +48,6 @@ void f_mul_u::perform_mul()
         ith_power = ith_power * 16;
     }
     temp_result = (op1 * op2) % (16777216); 	//discard overflow
-    //   printf ( "F_MUL_U:  %d times %d gives %d \n", op1, op2, temp_result );
     for (i = 15; i >= 0; i--)
     {
         mul_result[0].s.s16[i] = hex_to_char( (temp_result % 16) );
@@ -129,7 +128,6 @@ if (sim_waiting( ev, from_V_REGS ))
     }
 }								// end of if waiting from Vregs
 
-//	printf("F_MUL_U: operand1 = %s ready = %d, operand2 = %s,ready = %d \n", operand1.s16, opnd1_ready, operand2.s16, opnd2_ready);
 if (opnd1_ready && opnd2_ready)
 {
     switch (fn_pkt.op[0])
