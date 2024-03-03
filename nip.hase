@@ -125,7 +125,7 @@ my_state = NIP_IDLE;
 if (sim_waiting( ev, from_IB ))
 {
     SIM_CAST( t_sixteen_bit, instruction_parcel, ev );
-    printf( "NIP: getting instruction from IB, status = %c \n", status[0] );
+    // printf( "NIP: getting instruction from IB, status = %c \n", status[0] );
     //     if (status[0]=='1') // a real instruction, not a blank
     //	myP_reg->increment_p();
     my_state = NIP_BUSY;
@@ -173,7 +173,7 @@ if (sim_waiting( ev, from_IB ))
             send_blank = true;
             //	myP_reg->increment_p();
             increment_P = true;
-            printf( " nip: First half of a 2-parcel instruction \n" );
+            // printf( " nip: First half of a 2-parcel instruction \n" );
         }
         else
         {
@@ -219,7 +219,7 @@ if (instr_ready && cip_ready)
 {
     instrn.instrn = inst;
     send_DATAPKT( to_cip, instrn );
-    printf( "NIP: sending instruction to CIP \n" );
+    // printf( "NIP: sending instruction to CIP \n" );
     nip_ready = true;
     instr_ready = false;
     cip_ready = false;
@@ -230,7 +230,7 @@ if (send_blank && myCIP->cip_ready)
     instrn.instrn = blank_inst;
     instrn.parcels = 0;
     send_DATAPKT( to_cip, instrn );
-    printf( "NIP: sending blank instruction to CIP \n" );
+    // printf( "NIP: sending blank instruction to CIP \n" );
     send_blank = false;
     nip_ready = true;
     cip_ready = false;
