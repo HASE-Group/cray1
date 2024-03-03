@@ -58,7 +58,6 @@ add_result[1] = add_result[0];
 add_busy0 = false;
 if (sim_waiting(ev, from_CIP))
 {
-    printf("A_ADD_U getting instruction from CIP\n");
     SIM_CAST(fn_packet, fn_pkt, ev);
     add_busy0 = true;
 }
@@ -71,7 +70,6 @@ else
 if (sim_waiting(ev, from_A_REGS))
 {
     SIM_CAST(a_2values, op_values, ev);
-    printf("A_ADD_U getting operands \n");
     switch (fn_pkt.op[0] )
     {
     case '+':
@@ -82,7 +80,6 @@ if (sim_waiting(ev, from_A_REGS))
         break;
     }
     add_result[0].reg_no = fn_pkt.reg_no;
-    printf("A_ADD_U result = %s \n", add_result[0].a.s6);
 }
 dump_state();
 
@@ -92,7 +89,7 @@ $phase1
 
 if (add_busy1)
 {
-    printf("A_ADD_U: sending add result = %s \n", add_result[1].a.s6);
+//    printf("A_ADD_U: sending add result = %s \n", add_result[1].a.s6);
     send_A_PKT( to_a_regs, add_result[1] );
     add_busy1 = false;
 }
