@@ -33,7 +33,7 @@ void p_register::create_24bit( char* str22, char* str24 )
             + char_to_hex( str22[i - 1] ) / 4 );
     str24[5] = hex_to_char( (char_to_hex( str22[4] ) % 4) * 4
         + char_to_hex( str22[5] ) );
-    printf( "p_register:value stored to B is %s, P is %s \n", str24, str22 );
+    // printf( "p_register:value stored to B is %s, P is %s \n", str24, str22 );
 }
 
 
@@ -95,7 +95,7 @@ void p_register::increment_p()
             }
         }
     }
-    printf( " P_register: P incremented, = %s \n", P );
+    // printf( " P_register: P incremented, = %s \n", P );
     dump_state();
 }
 
