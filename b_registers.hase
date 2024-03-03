@@ -127,7 +127,6 @@ if (write_block)
 if (sim_waiting(ev, from_CIP))
 {
     SIM_CAST(tr_packet, tr_pkt, ev);
-    printf("B_REGS getting transmit instruction \n");
     my_state = B_REGS_BUSY;
 
     if (tr_pkt.type == BtoP)							// 005 Branch to Bjk (send (Bjk) to P)
@@ -199,14 +198,14 @@ if (sim_waiting(ev, from_CIP))
             write_to_Mem = true;
             requests = 0;
             write_block = true;
-            printf("B_registers:  instruction is Bwrite_to_m, blocksize = %d, reg_no = %d \n", blocksize, reg_no);
+//            printf("B_registers:  instruction is Bwrite_to_m, blocksize = %d, reg_no = %d \n", blocksize, reg_no);
         }
     }
 }
 
 /*	case store_to_p: create_22bit( BRegs[a_inst.ps_field.jk].b_hex.s6, pkt_to_p.a.s6 );
 			//copying a 24-bit to a 22-bit
-			printf( " b_registers: sending %s ",pkt_to_p.a.s6 );
+//			printf( " b_registers: sending %s ",pkt_to_p.a.s6 );
    			 send_to_P = true;
 			 break; 
 
@@ -232,7 +231,7 @@ if (send_to_Preg)
 
 if (send_to_Aregs)
 {
-    printf("B_Registers: sending  to A_regs, reg_no = %d, value= %s \n", pkt_to_a.reg_no,  pkt_to_a.b.s6);
+//    printf("B_Registers: sending  to A_regs, reg_no = %d, value= %s \n", pkt_to_a.reg_no,  pkt_to_a.b.s6);
     send_B_PKT( to_a_regs, pkt_to_a);
     send_to_Aregs = false;
     my_state = B_REGS_IDLE;
@@ -241,14 +240,14 @@ if (send_to_Aregs)
 
 if (read_Memory)
 {
-    printf("B_registers: sending read packet to Memory, address = %s \n", mem_read_pkt.address.s5);
+//    printf("B_registers: sending read packet to Memory, address = %s \n", mem_read_pkt.address.s5);
     send_READ_PKT(to_memory, mem_read_pkt);
     read_Memory = false;
 }
 
 if (write_to_Mem)
 {
-    printf("B_registers: sending write packet to Memory, reg_no = %d, address = %s , value = %s \n", reg_no, mem_write_pkt.address.s5, mem_write_pkt.ab.s6);
+//    printf("B_registers: sending write packet to Memory, reg_no = %d, address = %s , value = %s \n", reg_no, mem_write_pkt.address.s5, mem_write_pkt.ab.s6);
     send_WRITE24_PKT(to_memory, mem_write_pkt);
     write_to_Mem = false;
 }
