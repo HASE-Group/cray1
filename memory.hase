@@ -189,7 +189,7 @@ if (MemReqBuff[3].Type == 'A')
     {
         data24_pkt.s6[i] = data64_pkt.s16[i + 10];
     }
-    printf( "MEMORY: last buffer contains A request, address  = %s, int address =  %d, value = %s \n", MemReqBuff[3].address.s5, string_to_int( MemReqBuff[3].address.s5, 5 ), data64_pkt.s16 );
+    // printf( "MEMORY: last buffer contains A request, address  = %s, int address =  %d, value = %s \n", MemReqBuff[3].address.s5, string_to_int( MemReqBuff[3].address.s5, 5 ), data64_pkt.s16 );
     send_to_a = true;
 }
 
@@ -261,7 +261,7 @@ if (sim_waiting( ev, from_a ))
     if (ev.type() == READ_PKT)
     {
         SIM_CAST( t_mem_read, read_request, ev );
-        printf( "Memory getting read request from Aregs, address = %s \n", read_request.address.s5 );
+        // printf( "Memory getting read request from Aregs, address = %s \n", read_request.address.s5 );
         MemReqBuff[0].Type = 'A';
         MemReqBuff[0].reg_no = 0;
         MemReqBuff[0].address = read_request.address;
