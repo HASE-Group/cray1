@@ -71,7 +71,6 @@ mul_busy[0] = 0;
 
 if (sim_waiting(ev, from_CIP))
 {
-    printf("A_MUL_U getting instruction from CIP\n");
     SIM_CAST(fn_packet, fn_pkt, ev);
     mul_busy[0] = 1;
 }
@@ -84,7 +83,6 @@ else
 if (sim_waiting(ev, from_A_REGS))
 {
     SIM_CAST(a_2values, op_values, ev);
-    printf("A_MUL getting instruction \n");
     my_state = BUSY;
     switch (fn_pkt.op[0] )
     {
@@ -94,7 +92,6 @@ if (sim_waiting(ev, from_A_REGS))
         mul_busy[0] = true;
         break;
     }
-    printf("A_MUL_U result = %s \n", mul_result[0].a.s6);
 }
 
 dump_state();
@@ -105,7 +102,7 @@ $phase1
 
 if (mul_busy[4] == 1)
 {
-    printf("AU_MUL_U: sending mul output = %s \n", mul_result[4].a.s6);
+//    printf("A_MUL_U: sending mul output = %s \n", mul_result[4].a.s6);
     send_A_PKT( to_a_regs, mul_result[4] );
     mul_busy[4] = 0;
 }
