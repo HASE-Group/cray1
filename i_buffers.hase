@@ -215,7 +215,6 @@ if (sim_waiting( ev, from_Memory ))
             block = 0;
         }
     }
-    printf( "IB: address from memory = %s \n", buff_input.address );
 }
 
 /*
@@ -250,11 +249,11 @@ if (sim_waiting( ev, from_P ))       // as a result of a branch
 {
     // Receive a message from the P register - contains the address of the next instruction.
     SIM_CAST( t_twentyfour_bit, instruction_address, ev );
-    printf( "Instruction Buffer getting address from P\n" );
+    // printf( "Instruction Buffer getting address from P\n" );
     strcpy( instruction_parcel.s4, blank_parcel.s4 );
     get_parcel = true;
 }
-printf( "IB instruction_address = %s \n", instruction_address.s6 );
+// printf( "IB instruction_address = %s \n", instruction_address.s6 );
 
 if (get_parcel)
 {
@@ -289,7 +288,7 @@ if (get_parcel)
 
     else
     {
-        printf( "IB: BAR mismatch on current buffer - buff_address = %s, \n", buff_address.s4 );
+        // printf( "IB: BAR mismatch on current buffer - buff_address = %s, \n", buff_address.s4 );
         for (int i = 1; i < 4; i++)
         {
             if (matches( BAR[mod4( current_buffer + i )].s4, buff_address.s4 ))
@@ -304,7 +303,7 @@ if (get_parcel)
     }
     if (status[0] != 'I')                                      // update a buffer from memory
     {
-        printf( "IB: BAR no match  - buff_address = %s, \n", buff_address.s4 );
+        // printf( "IB: BAR no match  - buff_address = %s, \n", buff_address.s4 );
         int_mem_address = int_i_address >> 2;
         for (int i = 0; i < 5; i++)
         {
@@ -312,7 +311,7 @@ if (get_parcel)
             int_mem_address = int_mem_address >> 4;
         }
         memory_address.s5[5] = '\0';
-        printf( "memory_address = %s \n", memory_address.s5 );
+        // printf( "memory_address = %s \n", memory_address.s5 );
         //     Out_of_buffer_condition();
         strcpy( status, "OoB " );
         dump_state();
@@ -335,16 +334,16 @@ if (stop_send)
 sim_hold( 5 );
 nip_ready = myNIP->nip_ready;
 parcel_to_lip = myNIP->two_parcel;
-printf( "IBuffer: nip_ready = %d \n", nip_ready );
+// printf( "IBuffer: nip_ready = %d \n", nip_ready );
 if (send_instruction && !diff_buff_delay && nip_ready)
 {
     // Send instruction_parcel to nip, and to lip if parcel_to_lip is set in NIP
     send_INSTPKT( to_nip, instruction_parcel );
-    printf( "Buffer sending %s to NIP \n", instruction_parcel.s4 );
+    // printf( "Buffer sending %s to NIP \n", instruction_parcel.s4 );
     if (parcel_to_lip)         // NIP use its packet as confirmation that this packet has been sent to LIP
     {
         send_INSTPKT( to_lip, instruction_parcel );
-        printf( "IBuffer sending %s to LIP \n", instruction_parcel.s4 );
+        // printf( "IBuffer sending %s to LIP \n", instruction_parcel.s4 );
         parcel_to_lip = false;
     }
     nip_ready = false;
