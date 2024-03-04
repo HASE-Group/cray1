@@ -135,7 +135,6 @@ void v_registers::set_reservation( int i )
 {
     reserved[i] = 1;
     Vregs_Busy++;
-    //		printf("VREGS: setting Vreg %d busy \n", i);
     switch (i)
     {
     case 0: Vres_bits.res0 = 'R';
@@ -203,7 +202,6 @@ void v_registers::unset_reservation( int i )
 {
     reserved[i] = 0;
     Vregs_Busy--;
-    //		printf("VREGS: setting Vreg %d free \n", i);
     switch (i)
     {
     case 0: Vres_bits.res0 = '_';
@@ -398,7 +396,6 @@ void v_registers::sendSM_to_Vlogic( int k )
 
 void v_registers::sendVM_to_Vlogic( int j, int k )
 {
-    //		printf("Vregs starting sendVM to Vlogic \n");
     if ((VL > 64) || (VL == 0))
     {
         no_of_elements = 64;
@@ -675,7 +672,6 @@ if (sim_waiting( ev, from_V_SHIFT ))
     SIM_CAST( s_struct, s_result, ev );
     Vshf_reg_no = s_result.reg_no;
     Vshf_reg_value.v_hex = s_result.s;
-    //		 printf("v_regS getting SHIFT result %s for register %d  \n", reg_value.v_hex.s16, reg_no);
     Vshf_reg_value.v_int = string_to_long( s_result.s.s16, 16 );
     if (Vshf_results == 0)
     {
@@ -746,7 +742,6 @@ if (sim_waiting( ev, from_F_MUL ))
     SIM_CAST( s_struct, s_result, ev );
     Fmul_reg_no = s_result.reg_no;
     Fmul_reg_value.v_hex = s_result.s;
-    printf( "V_REGS getting F_MUL result %s for register %d  \n", reg_value.v_hex.s16, Fmul_reg_no );
     Fmul_reg_value.v_int = string_to_long( s_result.s.s16, 16 );
     if (Fmul_results == 0)
     {
@@ -769,7 +764,6 @@ if (sim_waiting( ev, from_F_ADD ))
     SIM_CAST( s_struct, s_result, ev );
     Fadd_reg_no = s_result.reg_no;
     Fadd_reg_value.v_hex = s_result.s;
-    //		 printf("V_REGS getting ADD result %s for register %d  \n", reg_value.v_hex.s16, Fadd_reg_no);
     Fadd_reg_value.v_int = string_to_long( s_result.s.s16, 16 );
     if (Fadd_results == 0)
     {
@@ -912,7 +906,6 @@ if (SVadd_op)
     if (Vadd_element < no_of_elements)
     {
         strcpy( add_value.s16, get_value( Vadd_reg2, Vadd_element ).s16 );
-        //	printf("Vregs: getting value %s from V reg %d element %d \n", value.s16, Vadd_reg2, Vadd_element);
         sendV_to_vadd = true;
     }
     else
@@ -947,7 +940,6 @@ if (SFmul_op)
     if (Fmul_element < no_of_elements)
     {
         strcpy( mul_value.s16, get_value( Fmul_reg2, Fmul_element ).s16 );
-        //	printf("Vregs: getting value %s from V reg %d element %d \n", value.s16, Fmul_reg2, Fmul_element);
         sendV_to_fmul = true;
     }
     else
@@ -982,7 +974,6 @@ if (SFadd_op)
     if (Fadd_element < no_of_elements)
     {
         strcpy( add_value.s16, get_value( Fadd_reg2, Fadd_element ).s16 );
-        //	printf("Vregs: getting value %s from V reg %d element %d \n", value.s16, Fadd_reg2, Fadd_element);
         sendV_to_fadd = true;
     }
     else
@@ -1018,7 +1009,6 @@ if (sim_waiting( ev, from_CIP ))
 
     if (tr_pkt.type == AtoVL)								// 0020  (Ak) VL
     {
-        //			 printf("V_REGS getting transmit to VL  instruction \n");
         if (sim_waiting( ev, from_Aregs ))
         {
             SIM_CAST( t_twentyfour_bit, value_pkt, ev );
@@ -1081,7 +1071,6 @@ if (sim_waiting( ev, from_CIP ))
 
     if (tr_pkt.type == MtoV)								// 176 Block transfer Memory to Vregs
     {
-        //			 printf("V_REGS getting  MtoV%d  instruction \n", tr_pkt.i);
         if ((VL > 64) || (VL == 0))
         {
             no_of_elements = 64;
@@ -1096,7 +1085,6 @@ if (sim_waiting( ev, from_CIP ))
         if (sim_waiting( ev, from_Aregs ))
         {
             SIM_CAST( a_2values, op_values, ev );			// (A0), (Ak)
-            //			 printf("V_REGS getting  A0 and Ak from Aregs, A0 = %s, Ak = %s \n", op_values.op1.s6, op_values.op2.s6);
             MV_reg_no = tr_pkt.i;
             set_reservation( MV_reg_no );
             for (int i = 0; i < 6; i++)
@@ -1111,7 +1099,6 @@ if (sim_waiting( ev, from_CIP ))
 
     if (tr_pkt.type == VtoM)								// 177 Block transfer Vregs to Memory
     {
-        //			 printf("V_REGS getting  V%dtoM  instruction \n", tr_pkt.j);
         if ((VL > 64) || (VL == 0))
         {
             no_of_elements = 64;
@@ -1135,7 +1122,6 @@ if (sim_waiting( ev, from_CIP ))
             strcpy( mem_write_pkt.st.s16, get_value( VM_reg_no, requests ).s16 );
             write_to_Mem = true;
             write_block = true;
-            //		 printf("V_REGS getting  A0 and Ak from Aregs, A0 = %s, Ak = %s \n", op_values.op1.s6, op_values.op2.s6);
         }
     }
 }
@@ -1182,7 +1168,6 @@ if (end_read_block)
 
 if (read_Memory)
 {
-    //		printf("V_registers: sending read packet to Memory, address = %s \n", mem_read_pkt.address.s5);
     send_READ_PKT( to_memory, mem_read_pkt );
     read_Memory = false;
 }
