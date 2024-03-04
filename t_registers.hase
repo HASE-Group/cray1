@@ -129,7 +129,6 @@ if (write_block)
 if (sim_waiting( ev, from_CIP ))
 {
     SIM_CAST( tr_packet, tr_pkt, ev );
-    printf( "T_REGS getting transmit instruction \n" );
     my_state = T_REGS_BUSY;
 
     if (tr_pkt.type == TtoS)								// 074 Transmit (Tjk) to Si
@@ -186,7 +185,6 @@ if (sim_waiting( ev, from_CIP ))
             write_to_Mem = true;
             requests = 0;
             write_block = true;
-            //printf("T_registers:  instruction is Twrite_to_m, blocksize = %d, reg_no = %d \n", blocksize, reg_no);
         }
     }
 }
@@ -204,7 +202,7 @@ if (set_Tregs_idle)
 
 if (send_to_Sregs)
 {
-    printf( "T_Registers: sending  to S_regs, reg_no = %d, value= %s \n", pkt_to_s.reg_no, pkt_to_s.s.s16 );
+//    printf( "T_Registers: sending  to S_regs, reg_no = %d, value= %s \n", pkt_to_s.reg_no, pkt_to_s.s.s16 );
     send_S_PKT( to_s_regs, pkt_to_s );
     send_to_Sregs = false;
     my_state = T_REGS_IDLE;
@@ -213,14 +211,14 @@ if (send_to_Sregs)
 
 if (read_Memory)
 {
-    printf( "T_registers: sending read packet to Memory, address = %s \n", mem_read_pkt.address.s5 );
+ //   printf( "T_registers: sending read packet to Memory, address = %s \n", mem_read_pkt.address.s5 );
     send_READ_PKT( to_memory, mem_read_pkt );
     read_Memory = false;
 }
 
 if (write_to_Mem)
 {
-    printf( "T_registers: sending write packet to Memory, address = %s \n", mem_write_pkt.address.s5 );
+  //  printf( "T_registers: sending write packet to Memory, address = %s \n", mem_write_pkt.address.s5 );
     send_WRITE64_PKT( to_memory, mem_write_pkt );
     write_to_Mem = false;
 }
