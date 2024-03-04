@@ -42,7 +42,6 @@ shift_result[1] = shift_result[0];
 if (sim_waiting( ev, from_CIP ))
 {
     SIM_CAST( fn_packet, fn_pkt, ev );
-    printf( "V_SHIFT_U getting instruction from CIP\n" );
 }
 
 
