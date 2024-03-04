@@ -325,7 +325,6 @@ if (sim_waiting( ev, from_Memory ))
     SIM_CAST( t_sixtyfour_bit, mem_value, ev );
     reg_no = m_reg_no;
     reg_value.s_hex = mem_value;
-    //		 printf("S_REGS getting value %s from Memory \n", reg_value.s_hex.s16);
     reg_value.s_int = string_to_int( mem_value.s16, 16 );
     SRegs.Update( reg_no, reg_value );
     unset_reservation( reg_no );
@@ -336,7 +335,6 @@ if (sim_waiting( ev, from_S_SHIFT ))							// 054, 055
     SIM_CAST( s_struct, s_result, ev );
     reg_no = s_result.reg_no;
     reg_value.s_hex = s_result.s;
-    //		 printf("S_REGS getting SHIFT result %s for register %d  \n", reg_value.s_hex.s16, reg_no);
     reg_value.s_int = string_to_long( s_result.s.s16, 16 );
     SRegs.Update( reg_no, reg_value );
     unset_reservation( reg_no );
@@ -347,7 +345,6 @@ if (sim_waiting( ev, from_S_LOGIC ))							// 042-047
     SIM_CAST( s_struct, s_result, ev );
     reg_no = s_result.reg_no;
     reg_value.s_hex = s_result.s;
-    //		 printf("S_REGS getting LOGIC result %s for register %d  \n", reg_value.s_hex.s16, reg_no);
     reg_value.s_int = string_to_long( s_result.s.s16, 16 );
     SRegs.Update( reg_no, reg_value );
     unset_reservation( reg_no );
@@ -358,7 +355,6 @@ if (sim_waiting( ev, from_S_ADD ))							// 060, 061
     SIM_CAST( s_struct, s_result, ev );
     reg_no = s_result.reg_no;
     reg_value.s_hex = s_result.s;
-    //		 printf("S_REGS getting ADD result %s for register %d  \n", reg_value.s_hex.s16, reg_no);
     reg_value.s_int = string_to_long( s_result.s.s16, 16 );
     SRegs.Update( reg_no, reg_value );
     unset_reservation( reg_no );
@@ -369,9 +365,7 @@ if (sim_waiting( ev, from_VM ))								// 073
     SIM_CAST( s_struct, s_result, ev );
     reg_no = s_result.reg_no;
     reg_value.s_hex = s_result.s;
-    //		 printf("S_REGS getting result %s from VM \n", reg_value.s_hex.s16);
     reg_value.s_int = string_to_long( s_result.s.s16, 16 );
-    //printf("S_REGS getting result from VM, integer value = %lu \n", string_to_long(s_result.s.s16, 16));
     SRegs.Update( reg_no, reg_value );
     unset_reservation( reg_no );
 }
@@ -381,13 +375,11 @@ if ((sim_waiting( ev, from_Tregs )) || (sim_waiting( ev, from_Vregs )))		// 074,
     SIM_CAST( s_struct, s_result, ev );
     reg_no = s_result.reg_no;
     reg_value.s_hex = s_result.s;
-    //		 printf("S_REGS getting result %s from Tregs/Vregs \n", reg_value.s_hex.s16);
     reg_value.s_int = string_to_long( s_result.s.s16, 16 );
     SRegs.Update( reg_no, reg_value );
     unset_reservation( reg_no );
 }
 
-//	printf("S_registers: Sregs_Busy = %d \n", Sregs_Busy);
 if (Sregs_Busy > 0)
 {
     my_state = S_REGS_BUSY;
@@ -418,7 +410,7 @@ if (send_to_Tregs)
 
 if (write_to_Mem)
 {
-    printf( "S_registers: sending write packet to Memory, address = %s \n", mem_write_pkt.address.s5 );
+    // printf( "S_registers: sending write packet to Memory, address = %s \n", mem_write_pkt.address.s5 );
     send_WRITE64_PKT( to_memory, mem_write_pkt );
     write_to_Mem = false;
 }
