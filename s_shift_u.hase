@@ -39,7 +39,6 @@ shift_busy0 = false;
 shift_result[1] = shift_result[0];
 if (sim_waiting( ev, from_CIP ))
 {
-    printf( "S_SHIFT_U getting instruction from CIP\n" );
     SIM_CAST( sh_fn_packet, sfn_pkt, ev );
     shift_busy0 = true;
 }
@@ -64,7 +63,6 @@ if (sim_waiting( ev, from_S_REGS ))
         shift_result[0].reg_no = sfn_pkt.reg_no;
         shift_left( op_value.s16, shift_result[0].s.s16, shift_distance );
         shift_busy0 = true;
-        //printf("S_SHIFT_U l %s = %s shifted left %d places \n", shift_result[0].s.s16, op_value.s16, shift_distance);
         break;
 
     case '>':											// 053, 055
@@ -72,7 +70,6 @@ if (sim_waiting( ev, from_S_REGS ))
         shift_result[0].reg_no = sfn_pkt.reg_no;
         shift_right( op_value.s16, shift_result[0].s.s16, shift_distance );
         shift_busy0 = true;
-        //printf("S_SHIFT_U r %s = %s shifted right %d places \n", shift_result[0].s.s16, op_value.s16, shift_distance);
         break;
     }
 }
