@@ -44,7 +44,6 @@ sim_from_port from_CIP( from_cip );
 if (sim_waiting( ev, from_CIP ))
 {
     SIM_CAST( fn_packet, fn_pkt, ev );
-    printf( "V_LOGIC getting function %c%c packet from CIP \n", fn_pkt.op[0], fn_pkt.op[1] );
 }
 
 if (sim_waiting( ev, from_S_REGS ))
@@ -86,7 +85,6 @@ if (sim_waiting( ev, from_V_REGS ))
     {
     case '&':												// 140, 141
         l_and( operand1.s16, operand2.s16, log_result.s.s16 );
-        printf( "V_LOGIC: And, operand 1 = %s, operand 2 = %s, result = %s  \n", operand1.s16, operand2.s16, log_result.s.s16 );
         break;
     case '|':												// 142, 143
         l_or( operand1.s16, operand2.s16, log_result.s.s16 );
@@ -95,7 +93,6 @@ if (sim_waiting( ev, from_V_REGS ))
         l_xor( operand1.s16, operand2.s16, log_result.s.s16 );
         break;
     case 'M':												// 146, 147
-        printf( "V_LOGIC: Merge, m select bit = %d, operand 1 = %s, operand 2 = %s  \n", m_select, operand1.s16, operand2.s16 );
         if (m_select == 1)
         {
             strcpy( log_result.s.s16, operand1.s16 );
@@ -159,13 +156,11 @@ dump_state();
 
 $phase1
 
-if (log_busy || test_busy)
-{
-    printf( "V_LOG_U: log_busy = %d, test_busy = %d \n", log_busy, test_busy );
-}
+//if (log_busy || test_busy)
+//{printf( "V_LOG_U: log_busy = %d, test_busy = %d \n", log_busy, test_busy );}
+
 if (log_busy)
 {
-    // printf("v_LOG_U sending result = %s to register %d \n", log_result.s.s16, log_result.reg_no);
     send_S_PKT( to_v_regs, log_result );
     log_busy = false;
 }
@@ -173,5 +168,4 @@ if (test_busy)
 {
     send_TEST_RESULT( to_vm, test_result );
     test_busy = false;
-    printf( "V_LOG_U: resetting test_busy \n" );
 }
