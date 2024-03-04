@@ -26,7 +26,6 @@ void s_pop_u::perform_pop()
 {
     result = 0;
     int_value = string_to_long( op_value.s16, 16 );
-    printf( "S_POP_U: initial int_value = %ld \n", int_value );
     for (i = 0; i < 64; i++)
     {
         if ((int_value & 1) == 1)
@@ -35,7 +34,7 @@ void s_pop_u::perform_pop()
         }
         int_value = int_value >> 1;
     }
-    printf( "S_POP_U: population count = %d \n", result );
+    // printf( "S_POP_U: population count = %d \n", result );
     for (i = 5; i >= 0; i--)
     {
         pop_result[0].a.s6[i] = hex_to_char( result & 15 );
@@ -96,7 +95,6 @@ if (sim_waiting( ev, from_CIP ))
 {
     SIM_CAST( fn_packet, fn_pkt, ev );
     pop_busy0 = true;
-    printf( "S_pop_U getting %c instruction from CIP\n", fn_pkt.op[0] );
 }
 
 if (pop_busy0 || pop_busy1 || pop_busy2)
@@ -111,7 +109,6 @@ else
 if (sim_waiting( ev, from_S_REGS ))
 {
     SIM_CAST( t_sixtyfour_bit, op_value, ev );
-    printf( "S_POP_U getting operand \n" );
     switch (fn_pkt.op[0])
     {
     case 'P':
@@ -122,7 +119,6 @@ if (sim_waiting( ev, from_S_REGS ))
         break;
     }
     pop_result[0].reg_no = fn_pkt.reg_no;
-    printf( "S_POP_U result = %s \n", pop_result[0].a.s6 );
 }
 dump_state();
 
@@ -133,7 +129,7 @@ $phase1
 if (pop_busy2)
 {
     sim_hold( 5 );
-    printf( "S_POP_U: sending pop output = %s \n", pop_result[2].a.s6 );
+    // printf( "S_POP_U: sending pop output = %s \n", pop_result[2].a.s6 );
     send_A_PKT( to_a_regs, pop_result[2] );
     pop_busy2 = false;
 }
